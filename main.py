@@ -19,6 +19,7 @@ CONTEXT = {
               "If they are clear, say something enthusiastic about the conditions."),
     "events": ("https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
                "Make a list of upcoming events in the next week, with an eye towards big festivals, fun performers and cover bands."+
+               'Start your response with: "Here are some of the top upcoming events in Lake Tahoe:"' + 
                "Follow the list with an enthusiastic pick for one of the events."),
     "backcountry": ("https://www.sierraavalanchecenter.org/forecasts#/all",
                 "Give a quick, casual update on backcountry conditions - like you're telling a friend what to expect today."),
