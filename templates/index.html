@@ -1,16 +1,29 @@
 <!doctype html>
-<html>
+<html class="h-full">
     <head>
         <title>Peak Conditions</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="{{ url_for('static', path='css/main.css') }}" rel="stylesheet">
     </head>
-    <body class="bg-gray-100 p-8">
-        <h1 class="text-3xl font-bold mb-8 text-gray-800">Peak Conditions</h1>
-        {% for context in contexts %}
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div id="{{ context }}-output" class="font-mono whitespace-pre-wrap"></div>
+    <body class="h-full bg-gray-50">
+        <div class="min-h-full">
+            <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                <h1 class="text-3xl font-bold text-gray-900 mb-8">Peak Conditions</h1>
+                
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                    {% for context in contexts %}
+                    <div class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200">
+                        <div class="px-4 py-5 sm:px-6">
+                            <h2 class="text-lg font-medium text-gray-900 capitalize">{{ context }}</h2>
+                        </div>
+                        <div class="px-4 py-5 sm:p-6">
+                            <div id="{{ context }}-output" class="font-mono text-sm whitespace-pre-wrap text-gray-600 min-h-[200px]"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
-        {% endfor %}
 
         <script>
             {% for context in contexts %}
