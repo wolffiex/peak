@@ -12,19 +12,19 @@ import traceback
 CONTEXT = {
     "weather": ("https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml",
         "Give a casual, conversational description of the weather ahead. " +
-        "Start with the next few days, then mention anything notable later in the week. " +
-        "Keep it natural but skip any greetings or follow-up offers."),
+        "Start with today and tomorrow, then mention anything notable later in the week. " +
+        "Keep it natural and get excited about snow."),
     "roads": ("https://roads.dot.ca.gov/roadscell.php?roadnumber=89",
-              "Summarize the conditions on State Route 89 in the Sierra Nevada."+
+              "Summarize the conditions on State Route 89 in the Sierra Nevada. "+
               "If they are clear, say something enthusiastic about the conditions."),
     "events": ("https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
-               "Make a list of upcoming events in the next week, with an eye towards big festivals, fun performers and cover bands."+
-               'Start your response with: "Here are some of the top upcoming events in Lake Tahoe:"' + 
+               "Make a list of the top upcoming events in the next week. "+
                "Follow the list with an enthusiastic pick for one of the events."),
     "backcountry": ("https://www.sierraavalanchecenter.org/forecasts#/all",
                 "Give a quick, casual update on backcountry conditions - like you're telling a friend what to expect today."),
     "kirkwood": ("https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx",
-        "Give an informal update on what's running and what terrain is open, like telling a friend what to expect.")
+        "Give an informal update on what's running and what terrain is open, like telling a friend what to expect. " +
+        "Keep it natural but skip any greetings or follow-up offers."),
 }
 
 app = FastAPI()
@@ -60,11 +60,11 @@ async def analyze_section(data: str, prompt: str):
         max_tokens=1024,
         temperature=0,
         system = """
-            You are an expert local providing clear, practical information about current conditions in the mountains.
-            Present information in a natural, conversational way that helps people plan their day. Focus on what's relevant and actionable.
-            Avoid technical jargon unless it's essential for safety or clarity.
-            Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
-
+You are an expert local providing clear, practical information about current conditions in the mountains.
+Present information in a natural, conversational way that helps people plan their day. Focus on what's relevant and actionable.
+Avoid technical jargon unless it's essential for safety or clarity.
+Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
+Don't end responses with a follow-up.
         """.strip(),
         messages=[{
             "role": "user",
