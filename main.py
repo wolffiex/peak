@@ -28,8 +28,8 @@ CONTEXT = {
 }
 
 app = FastAPI()
-templates = Jinja2Templates(directory="build/templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+app.mount("/build", StaticFiles(directory="build"), name="build")
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 

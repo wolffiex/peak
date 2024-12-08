@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "cp -r templates/* build/templates/ && tailwindcss build -i ./static/src/main.css -o ./static/css/main.css --watch",
-    "build": "tailwindcss build -i ./static/src/main.css -o ./static/css/main.css --minify && cp -r templates/* build/templates/"
+    "watch": "tailwindcss -i ./static/main.css -o ./build/main.css --watch --content './templates/**/*.html'"
   },
   "keywords": [],
   "author": "",

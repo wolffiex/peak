@@ -2,22 +2,38 @@
 <html class="h-full">
     <head>
         <title>Peak Conditions</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href="{{ url_for('static', path='css/main.css') }}" rel="stylesheet">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link href="{{ url_for('build', path='main.css') }}" rel="stylesheet" />
     </head>
     <body class="h-full bg-gray-50">
         <div class="min-h-full">
             <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                <h1 class="text-3xl font-bold text-gray-900 mb-8">Peak Conditions</h1>
-                
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                <h1 class="text-3xl font-bold text-gray-900 mb-8">
+                    Peak Conditions
+                </h1>
+
+                <div
+                    class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
+                >
                     {% for context in contexts %}
-                    <div class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200">
+                    <div
+                        class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
+                    >
                         <div class="px-4 py-5 sm:px-6">
-                            <h2 class="text-lg font-medium text-gray-900 capitalize">{{ context }}</h2>
+                            <h2
+                                class="text-lg font-medium text-gray-900 capitalize"
+                            >
+                                {{ context }}
+                            </h2>
                         </div>
                         <div class="px-4 py-5 sm:p-6">
-                            <div id="{{ context }}-output" class="font-mono text-sm whitespace-pre-wrap text-gray-600 min-h-[200px]"></div>
+                            <div
+                                id="{{ context }}-output"
+                                class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[200px]"
+                            >
+                                <div class="animate-pulse">Loading...</div>
+                                <p class="content"></p>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -32,7 +48,11 @@
                 const eventSource = new EventSource('/stream/{{ context }}');
 
                 eventSource.onmessage = function(event) {
-                    output.textContent += event.data;
+                  output.querySelector('.animate-pulse')?.remove();
+                  const content = output.querySelector('.content');
+                  console.log(content)
+                  const lines = event.data.split('\n');
+                  content.innerHTML += lines.map(line => `<span>${line}</span>`).join('<br>');
                 };
 
                 eventSource.onerror = function() {
