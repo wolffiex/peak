@@ -2,27 +2,13 @@
 <html>
     <head>
         <title>Peak Conditions</title>
-        <style>
-            .section {
-                white-space: pre-wrap;
-                font-family: monospace;
-                margin: 20px;
-                padding: 10px;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-            }
-            h2 {
-                margin: 0;
-                padding-bottom: 10px;
-                text-transform: capitalize;
-            }
-        </style>
+        <link href="{{ url_for('static', path='css/main.css') }}" rel="stylesheet">
     </head>
-    <body>
-        <h1>Peak Conditions</h1>
+    <body class="bg-gray-100 p-8">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">Peak Conditions</h1>
         {% for context in contexts %}
-        <div class="section">
-            <div id="{{ context }}-output"></div>
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div id="{{ context }}-output" class="font-mono whitespace-pre-wrap"></div>
         </div>
         {% endfor %}
 

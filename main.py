@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from anthropic import Anthropic
@@ -27,7 +28,8 @@ CONTEXT = {
 }
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="build/templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
