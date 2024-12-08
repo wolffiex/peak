@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "watch": "tailwindcss -i ./static/main.css -o ./build/main.css --watch --content './templates/**/*.html'"
+    "build": "tailwindcss -i ./static/main.css -o ./build/main.css --minify --content './templates/**/*.html'"
   },
   "keywords": [],
   "author": "",
