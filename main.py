@@ -6,85 +6,90 @@ from anthropic import Anthropic
 import httpx
 import asyncio
 import os
+import traceback
+
+CONTEXT = {
+    "weather": ("https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml",
+        "Give a casual, conversational description of the weather ahead. " +
+        "Start with the next few days, then mention anything notable later in the week. " +
+        "Keep it natural but skip any greetings or follow-up offers."),
+    "roads": ("https://roads.dot.ca.gov/roadscell.php?roadnumber=89",
+              "Summarize the conditions on State Route 89 in the Sierra Nevada."+
+              "If they are clear, say something enthusiastic about the conditions."),
+    "events": ("https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
+               "Make a list of upcoming events in the next week, with an eye towards big festivals, fun performers and cover bands."+
+               'Give the list the heading "Upcoming events:"' +
+               "Follow the list with an enthusiastic pick for one of the events."),
+    "backcountry": ("https://www.sierraavalanchecenter.org/forecasts#/all",
+                "Give a quick, casual update on backcountry conditions - like you're telling a friend what to expect today."),
+    "kirkwood": ("https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx",
+        "Give an informal update on what's running and what terrain is open, like telling a friend what to expect.")
+}
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
-async def gather_context():
-    async with httpx.AsyncClient() as client:
-        # Fetch all data concurrently
-        responses = await asyncio.gather(
-            client.get(
-                "https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml"
-            ),
-            client.get(
-                "https://roads.dot.ca.gov/roadscell.php?roadnumber=89"
-            ),
-            client.get(
-                "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168"
-            ),
-            client.get(
-                "https://www.sierraavalanchecenter.org/forecasts#/all"
-            ),
-            client.get(
-                "https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx"
-            )
-        )
+@app.on_event("startup")
+async def startup_event():
+    app.state.http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
-        return {
-            "weather": responses[0].text,
-            "roads": responses[1].text,
-            "events": responses[2].text,
-            "avalanche": responses[3].text,
-            "kirkwood": responses[4].text
-        }
+@app.on_event("shutdown")
+async def shutdown_event():
+    await app.state.http_client.aclose()
+
+async def fetch(url):
+    print(f"Fetching {url}...")
+    response = await app.state.http_client.get(url)
+    print(f"Got response from {url}: {response.status_code}")
+    text = response.text
+    print(f"Response length: {len(text)} characters")
+    return text
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "contexts": CONTEXT.keys()})
 
-async def analyze_section(title: str, data: str):
-    prompt = f"""Analyze this {title} data about the South Lake Tahoe area and provide a brief summary:
-
-{data}
-
-Provide a very concise summary focusing only on the most important points."""
-
+async def analyze_section(data: str, prompt: str):
+    print(f"Analyzing data of length {len(data)} with prompt: {prompt[:100]}...")
     message = anthropic.messages.create(
         model="claude-3-opus-20240229",
         max_tokens=1024,
         temperature=0,
-        system="You are a helpful AI assistant. Keep your responses concise.",
+        system = """
+            You are an expert local providing clear, practical information about current conditions in the mountains.
+            Present information in a natural, conversational way that helps people plan their day. Focus on what's relevant and actionable.
+            Avoid technical jargon unless it's essential for safety or clarity.
+            Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
+
+        """.strip(),
         messages=[{
             "role": "user",
-            "content": prompt
+            "content": f"{prompt}\n\n<html>{data}</html>"
         }],
         stream=True
     )
-    
     return message
 
-@app.get('/stream')
-async def stream(request: Request):
-    async def event_generator():
-        # Gather context before making the API call
-        context = await gather_context()
-        
-        sections = [
-            ("Weather", context['weather']),
-            ("Roads", context['roads']),
-            ("Events", context['events']),
-            ("Avalanche", context['avalanche']),
-            ("Kirkwood", context['kirkwood'])
-        ]
+@app.get('/stream/{context_id}')
+async def stream(request: Request, context_id: str):
+    context = CONTEXT[context_id]
 
-        for title, data in sections:
-            yield {"data": f"\n\n## {title}\n"}
-            message_stream = await analyze_section(title, data)
+    url, prompt = context
+    print(f"\nStarting stream for {context_id}...")
+
+    async def event_generator():
+        try:
+            data = await fetch(url)
+            message_stream = await analyze_section(data, prompt)
             for chunk in message_stream:
                 if chunk.type == "content_block_delta":
                     yield {"data": chunk.delta.text}
-                await asyncio.sleep(0.05)  # Small delay between chunks
-    
+                await asyncio.sleep(0.05)
+        except Exception as e:
+            print(f"\nError in stream {context_id}:")
+            traceback.print_exc()
+            yield {"data": f"\nError: {str(e)}\n{traceback.format_exc()}"}
+
     return EventSourceResponse(event_generator())
