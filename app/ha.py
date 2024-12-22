@@ -1,38 +1,54 @@
 import os
+import asyncio
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
+import httpx
 
 HA_HOST = os.environ["HA_HOST"]
 HA_API_URL = f"http://{HA_HOST}:8123/api"
 HA_ACCESS_TOKEN = os.environ["HA_ACCESS_TOKEN"]
 CONTROLS = {
-    "tree": "switch.living_switch_2",
-    "candycane": "switch.tahoe_media_extension_switch_1",
+    "Tree lights": "switch.living_switch_2",
+    "Candy cane lights": "switch.tahoe_media_extension_switch_1",
 }
 
 def install_routes(app, templates):
     @app.get("/controls", response_class=HTMLResponse)
     async def controls(request: Request):
-        return templates.TemplateResponse("controls.html", {"request": request})
+        controls = await ha_info()
+        return templates.TemplateResponse("controls.html", {
+            "request": request,
+            "controls": controls
+        })
 
 async def ha_info():
     headers = {
-        "Authorization": f"Bearer {ha_access_token}",
+        "Authorization": f"Bearer {HA_ACCESS_TOKEN}",
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient() as client:
-        urls = [f"{HA_API_URL}/states/{switch}" for switch in CONTROLS.values()]
-        responses = await asyncio.gather(
-            *[client.get(url, headers=headers) for url in urls]
-        )
-        t_switch, h_switch, h_power = [
-            response.json()["state"] for response in responses
-        ]
-        return {
-            "tidbyt_switch": convert_switch_state(t_switch),
-            "heat_switch": convert_switch_state(h_switch),
-            "heat_power": h_power,
-        }
+    control_list = [
+        {"name": name, "entity_id": entity_id}
+        for name, entity_id in CONTROLS.items()
+    ]
+
+    try:
+        async with httpx.AsyncClient() as client:
+            responses = await asyncio.gather(*[
+                client.get(f"{HA_API_URL}/states/{control['entity_id']}", headers=headers)
+                for control in control_list
+            ])
+            
+            for control, response in zip(control_list, responses):
+                if response.status_code == 200:
+                    state = response.json()
+                    control["state"] = state["state"]
+                else:
+                    control["state"] = "error"
+            
+            return control_list
+    except Exception as e:
+        print(f"Error in ha_info: {str(e)}")
+        return [{"name": name, "entity_id": id, "state": "error"}
+                for name, id in CONTROLS.items()]
