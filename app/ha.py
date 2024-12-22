@@ -11,6 +11,7 @@ HA_ACCESS_TOKEN = os.environ["HA_ACCESS_TOKEN"]
 CONTROLS = {
     "Tree lights": "switch.living_switch_2",
     "Candy cane lights": "switch.tahoe_media_extension_switch_1",
+    "Snowflake lights": "switch.snowflake",
 }
 
 async def render_controls(request: Request, templates):
