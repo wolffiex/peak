@@ -13,14 +13,17 @@ CONTROLS = {
     "Candy cane lights": "switch.tahoe_media_extension_switch_1",
 }
 
+async def render_controls(request: Request, templates):
+    controls = await ha_info()
+    return templates.TemplateResponse("controls.html", {
+        "request": request,
+        "controls": controls
+    })
+
 def install_routes(app, templates):
     @app.get("/controls", response_class=HTMLResponse)
     async def get_controls(request: Request):
-        controls = await ha_info()
-        return templates.TemplateResponse("controls.html", {
-            "request": request,
-            "controls": controls
-        })
+        return await render_controls(request, templates)
 
     @app.post("/controls", response_class=HTMLResponse)
     async def update_control(request: Request):
@@ -43,12 +46,7 @@ def install_routes(app, templates):
         # Give HA a moment to process
         await asyncio.sleep(0.5)
         
-        # Return updated controls
-        controls = await ha_info()
-        return templates.TemplateResponse("controls.html", {
-            "request": request,
-            "controls": controls
-        })
+        return await render_controls(request, templates)
 
 async def ha_info():
     headers = {

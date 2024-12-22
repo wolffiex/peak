@@ -4,8 +4,15 @@ interface StreamBlock extends HTMLElement {
     };
 }
 
-async function updateControl(entityId: string, newState: string): Promise<void> {
+declare global {
+    interface Window {
+        updateControl: (entityId: string, currentState: string) => void;
+    }
+}
+
+window.updateControl = async (entityId: string, currentState: string) => {
     try {
+        const newState = currentState === 'on' ? 'off' : 'on';
         const response = await fetch('/controls', {
             method: 'POST',
             headers: {
@@ -22,24 +29,10 @@ async function updateControl(entityId: string, newState: string): Promise<void> 
         const controlsTarget = document.querySelector<HTMLElement>('[data-controls-target]');
         if (controlsTarget) {
             controlsTarget.innerHTML = html;
-            initializeControlHandlers();
         }
     } catch (error) {
         console.error('Failed to update control:', error);
     }
-}
-
-function initializeControlHandlers(): void {
-    document.querySelectorAll<HTMLButtonElement>('[data-entity-id]').forEach(button => {
-        button.addEventListener('click', () => {
-            const entityId = button.dataset.entityId;
-            if (!entityId) return;
-            
-            // Set the new state based on current aria-checked value
-            const newState = button.getAttribute('aria-checked') === 'true' ? 'off' : 'on';
-            updateControl(entityId, newState);
-        });
-    });
 }
 
 async function injectControls(target: HTMLElement): Promise<void> {
@@ -47,7 +40,6 @@ async function injectControls(target: HTMLElement): Promise<void> {
         const response = await fetch('/controls');
         const html = await response.text();
         target.innerHTML = html;
-        initializeControlHandlers();
     } catch (error) {
         console.error('Failed to load controls:', error);
     }
