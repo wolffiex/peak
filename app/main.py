@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from anthropic import Anthropic
+from datetime import datetime
 from app import ha
 import httpx
 import asyncio
@@ -58,8 +59,11 @@ CONTEXT = {
             "url": "https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx",
             "intro": "Here's the current status of Kirkwood's lifts and terrain:"
         }],
-        "final_prompt": "Give an informal update on what's running and what terrain is open, like telling a friend what to expect. " +
-                       "Keep it natural but skip any greetings or follow-up offers."
+        "final_prompt": "Give a quick overview of what's open at Kirkwood today. Focus on the main areas: " +
+                       "frontside, backside, Timber Creek, and the bowls. Mention overall lift and trail stats, " +
+                       "but don't list specific lift or trail names unless they're really important. " +
+                       "If there are any groomer's picks or featured groomed runs for today, mention those. " +
+                       "End with a brief, enthusiastic summary of the overall situation."
     },
 }
 
@@ -115,8 +119,9 @@ async def analyze_section(context):
         model="claude-3-opus-20240229",
         max_tokens=1024,
         temperature=0,
-        system = """
+        system = f"""
 You are an expert local providing clear, practical information about current conditions in the mountains.
+The current date and time is {datetime.now().strftime('%A, %B %d at %I:%M %p Pacific')}.
 Present information in a natural, conversational way that helps people plan their day. Focus on what's relevant and actionable.
 Avoid technical jargon unless it's essential for safety or clarity.
 Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
