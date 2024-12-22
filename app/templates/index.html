@@ -3,7 +3,7 @@
     <head>
         <title>Peak Conditions</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="{{ url_for('build', path='main.css') }}" rel="stylesheet" />
+        <link href="{{ url_for('dist', path='main.css') }}" rel="stylesheet" />
     </head>
     <body class="h-full bg-gray-50">
         <div class="min-h-full">
@@ -35,7 +35,7 @@
                         </div>
                         <div class="px-4 py-5 sm:p-6">
                             <div
-                                id="{{ context }}-output"
+                                data-stream="{{ context }}"
                                 class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[200px]"
                             >
                                 <div class="animate-pulse">Loading...</div>
@@ -48,25 +48,6 @@
             </div>
         </div>
 
-        <script>
-            {% for context in contexts %}
-            (function() {
-                const output = document.getElementById('{{ context }}-output');
-                const eventSource = new EventSource('/stream/{{ context }}');
-
-                eventSource.onmessage = function(event) {
-                  output.querySelector('.animate-pulse')?.remove();
-                  const content = output.querySelector('.content');
-                  console.log(content)
-                  const lines = event.data.split('\n');
-                  content.innerHTML += lines.map(line => `<span>${line}</span>`).join('<br>');
-                };
-
-                eventSource.onerror = function() {
-                    eventSource.close();
-                };
-            })();
-            {% endfor %}
-        </script>
+        <script src="{{ url_for('dist', path='main.js') }}"></script>
     </body>
 </html>

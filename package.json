@@ -3,16 +3,20 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "watch": "tailwindcss -i ./app/static/main.css -o ./build/main.css --watch",
-    "build": "tailwindcss -i ./app/static/main.css -o ./build/main.css --minify"
+    "watch": "concurrently \"tailwindcss -i ./src/main.css -o ./dist/main.css --watch\" \"esbuild src/main.ts --bundle --outfile=dist/main.js --watch\"",
+    "build": "tailwindcss -i ./src/main.css -o ./dist/main.css --minify && esbuild src/main.ts --bundle --outfile=dist/main.js --minify"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "esbuild": "^0.24.0",
     "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.16"
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.2"
   }
 }

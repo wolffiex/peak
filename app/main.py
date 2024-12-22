@@ -32,7 +32,7 @@ CONTEXT = {
 BASE_PATH = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_PATH / "templates"))
 app = FastAPI()
-app.mount("/build", StaticFiles(directory="build"), name="build")
+app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
