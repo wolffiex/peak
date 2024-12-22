@@ -15,7 +15,35 @@ CONTROLS = {
 
 def install_routes(app, templates):
     @app.get("/controls", response_class=HTMLResponse)
-    async def controls(request: Request):
+    async def get_controls(request: Request):
+        controls = await ha_info()
+        return templates.TemplateResponse("controls.html", {
+            "request": request,
+            "controls": controls
+        })
+
+    @app.post("/controls", response_class=HTMLResponse)
+    async def update_control(request: Request):
+        data = await request.json()
+        entity_id = data['entity_id']
+        desired_state = data['state']
+        
+        # Convert state to HA action
+        action = "turn_on" if desired_state == "on" else "turn_off"
+        
+        # Send request to HA
+        url = f"{HA_API_URL}/services/switch/{action}"
+        headers = {
+            "Authorization": f"Bearer {HA_ACCESS_TOKEN}",
+            "Content-Type": "application/json",
+        }
+        async with httpx.AsyncClient() as client:
+            await client.post(url, headers=headers, json={"entity_id": entity_id})
+        
+        # Give HA a moment to process
+        await asyncio.sleep(0.5)
+        
+        # Return updated controls
         controls = await ha_info()
         return templates.TemplateResponse("controls.html", {
             "request": request,
@@ -48,7 +76,6 @@ async def ha_info():
                     control["state"] = "error"
             
             return control_list
-    except Exception as e:
-        print(f"Error in ha_info: {str(e)}")
+    except Exception:
         return [{"name": name, "entity_id": id, "state": "error"}
                 for name, id in CONTROLS.items()]
