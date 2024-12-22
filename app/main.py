@@ -1,9 +1,11 @@
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from anthropic import Anthropic
+from app import ha
 import httpx
 import asyncio
 import os
@@ -27,9 +29,11 @@ CONTEXT = {
         "Keep it natural but skip any greetings or follow-up offers."),
 }
 
+BASE_PATH = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_PATH / "templates"))
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 app.mount("/build", StaticFiles(directory="build"), name="build")
+ha.install_routes(app, templates)
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
