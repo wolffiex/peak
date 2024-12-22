@@ -47,7 +47,6 @@ async function injectControls(target: HTMLElement): Promise<void> {
 
 function initializeStream(block: StreamBlock): void {
     const context = block.dataset.stream;
-  return
     const eventSource = new EventSource(`/stream/${context}`);
     const content = block.querySelector('.content');
 
