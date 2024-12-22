@@ -4,6 +4,16 @@ interface StreamBlock extends HTMLElement {
     };
 }
 
+async function injectControls(target: HTMLElement): Promise<void> {
+    try {
+        const response = await fetch('/controls');
+        const html = await response.text();
+        target.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load controls:', error);
+    }
+}
+
 function initializeStream(block: StreamBlock): void {
     const context = block.dataset.stream;
     const eventSource = new EventSource(`/stream/${context}`);
@@ -23,3 +33,8 @@ function initializeStream(block: StreamBlock): void {
 }
 
 document.querySelectorAll<StreamBlock>('[data-stream]').forEach(initializeStream);
+
+const controlsTarget = document.querySelector<HTMLElement>('[data-controls-target]');
+if (controlsTarget) {
+    injectControls(controlsTarget);
+}
