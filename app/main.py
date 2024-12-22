@@ -12,21 +12,55 @@ import os
 import traceback
 
 CONTEXT = {
-    "weather": ("https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml",
-        "Give a casual, conversational description of the weather ahead. " +
-        "Start with today and tomorrow, then mention anything notable later in the week. " +
-        "Keep it natural and get excited about snow."),
-    "roads": ("https://roads.dot.ca.gov/roadscell.php?roadnumber=89",
-              "Summarize the conditions on State Route 89 in the Sierra Nevada. "+
-              "If they are clear, say something enthusiastic about the conditions."),
-    "events": ("https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
-               "Make a list of the top upcoming events in the next week. "+
-               "Follow the list with an enthusiastic pick for one of the events."),
-    "backcountry": ("https://www.sierraavalanchecenter.org/forecasts#/all",
-                "Give a quick, casual update on backcountry conditions - like you're telling a friend what to expect today."),
-    "kirkwood": ("https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx",
-        "Give an informal update on what's running and what terrain is open, like telling a friend what to expect. " +
-        "Keep it natural but skip any greetings or follow-up offers."),
+    "weather": {
+        "sources": [{
+            "url": "https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml",
+            "intro": "Here's the current weather forecast for Kirkwood:"
+        }],
+        "final_prompt": "Give a casual, conversational description of the weather ahead. " +
+                       "Start with today and tomorrow, then mention anything notable later in the week. " +
+                       "Keep it natural and get excited about snow."
+    },
+    "roads": {
+        "sources": [
+            {
+                "url": "https://roads.dot.ca.gov/roadscell.php?roadnumber=89",
+                "intro": "Here are the current conditions for SR-89. For the drive to Kirkwood, we only care about the section between Meyers and Pickets Junction (Luther Pass):"
+            },
+            {
+                "url": "https://roads.dot.ca.gov/roadscell.php?roadnumber=88",
+                "intro": "And here are the conditions for SR-88. For the drive to Kirkwood, we only care about the section between Pickets Junction and Kirkwood (Carson Pass):"
+            }
+        ],
+        "final_prompt": "Based on these road conditions, is the drive from Meyers to Kirkwood open? " +
+                       "We need SR-89 to be open between Meyers and Pickets Junction (Luther Pass), " +
+                       "and SR-88 to be open between Pickets Junction and Kirkwood (Carson Pass). " +
+                       "Only mention closures if they specifically affect these sections. " +
+                       "If these specific sections aren't mentioned in the alerts, then the road is open."
+    },
+    "events": {
+        "sources": [{
+            "url": "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
+            "intro": "Here are the upcoming events in Lake Tahoe:"
+        }],
+        "final_prompt": "Make a list of the top upcoming events in the next week. " +
+                       "Follow the list with an enthusiastic pick for one of the events."
+    },
+    "backcountry": {
+        "sources": [{
+            "url": "https://www.sierraavalanchecenter.org/forecasts#/all",
+            "intro": "Here's today's Sierra Avalanche Center forecast:"
+        }],
+        "final_prompt": "Give a quick, casual update on backcountry conditions - like you're telling a friend what to expect today."
+    },
+    "kirkwood": {
+        "sources": [{
+            "url": "https://www.kirkwood.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx",
+            "intro": "Here's the current status of Kirkwood's lifts and terrain:"
+        }],
+        "final_prompt": "Give an informal update on what's running and what terrain is open, like telling a friend what to expect. " +
+                       "Keep it natural but skip any greetings or follow-up offers."
+    },
 }
 
 BASE_PATH = Path(__file__).resolve().parent
@@ -57,8 +91,26 @@ async def fetch(url):
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "contexts": CONTEXT.keys()})
 
-async def analyze_section(data: str, prompt: str):
-    print(f"Analyzing data of length {len(data)} with prompt: {prompt[:100]}...")
+async def analyze_section(context):
+    print(f"Analyzing data for context...")
+    
+    # Fetch all sources in parallel
+    results = await asyncio.gather(*[fetch(source["url"]) for source in context["sources"]])
+    
+    # Build messages list with intros and data
+    messages = []
+    for source, data in zip(context["sources"], results):
+        messages.extend([
+            {"role": "user", "content": source["intro"]},
+            {"role": "user", "content": data}
+        ])
+    
+    # Add the final prompt
+    messages.append({
+        "role": "user",
+        "content": context["final_prompt"]
+    })
+    
     message = anthropic.messages.create(
         model="claude-3-opus-20240229",
         max_tokens=1024,
@@ -70,10 +122,7 @@ Avoid technical jargon unless it's essential for safety or clarity.
 Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
 Don't end responses with a follow-up.
         """.strip(),
-        messages=[{
-            "role": "user",
-            "content": f"{prompt}\n\n<html>{data}</html>"
-        }],
+        messages=messages,
         stream=True
     )
     return message
@@ -81,14 +130,11 @@ Don't end responses with a follow-up.
 @app.get('/stream/{context_id}')
 async def stream(request: Request, context_id: str):
     context = CONTEXT[context_id]
-
-    url, prompt = context
     print(f"\nStarting stream for {context_id}...")
 
     async def event_generator():
         try:
-            data = await fetch(url)
-            message_stream = await analyze_section(data, prompt)
+            message_stream = await analyze_section(context)
             for chunk in message_stream:
                 if chunk.type == "content_block_delta":
                     yield {"data": chunk.delta.text}
