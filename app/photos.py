@@ -16,4 +16,7 @@ def install_routes(app, templates):
             return "No photos found"
             
         oldest_file = min(files, key=lambda x: x[1])[0]
+        full_path = os.path.join(PHOTOS_DIR, oldest_file)
+
+        os.utime(full_path, None)  # Touch the file
         return RedirectResponse(url=f"/photos/{oldest_file}", status_code=307)
