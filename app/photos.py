@@ -5,13 +5,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import httpx
 
+PHOTOS_DIR = "/var/www/photos"
 def install_routes(app, templates):
     @app.get("/next_photo", response_class=HTMLResponse)
     async def next_photo(request: Request):
-        photos_dir = "photos"  # adjust path as needed
-        files = [(f, os.path.getmtime(os.path.join(photos_dir, f))) 
-                 for f in os.listdir(photos_dir) 
-                 if f.endswith(('.jpg', '.jpeg', '.png'))]
+        files = [(f, os.path.getmtime(os.path.join(PHOTOS_DIR, f))) 
+                 for f in os.listdir(PHOTOS_DIR) ]
         
         if not files:
             return "No photos found"

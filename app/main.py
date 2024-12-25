@@ -7,6 +7,7 @@ from sse_starlette.sse import EventSourceResponse
 from anthropic import Anthropic
 from datetime import datetime
 from app import ha
+from app import photos
 import httpx
 import asyncio
 import os
@@ -72,6 +73,7 @@ templates = Jinja2Templates(directory=str(BASE_PATH / "templates"))
 app = FastAPI()
 app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
+photos.install_routes(app, templates)
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
