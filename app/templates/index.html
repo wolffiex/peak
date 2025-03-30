@@ -42,6 +42,11 @@
                                 <div class="animate-pulse">Loading...</div>
                                 <p class="content"></p>
                             </div>
+                            {% if contexts_data[context] and contexts_data[context].footer %}
+                            <div class="mt-4 text-sm text-gray-600">
+                                {{ contexts_data[context].footer | safe }}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}

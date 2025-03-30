@@ -8,6 +8,7 @@ from anthropic import Anthropic
 from datetime import datetime
 from app import ha
 from app import photos
+from app import weather
 import httpx
 import asyncio
 import os
@@ -21,7 +22,8 @@ CONTEXT = {
         }],
         "final_prompt": "Give a casual, conversational description of the weather ahead. " +
                        "Start with today and tomorrow, then mention anything notable later in the week. " +
-                       "Keep it natural and get excited about snow."
+                       "Keep it natural and get excited about snow.",
+        "footer": "For detailed local weather data, check the <a href='/weather' class='text-indigo-600 hover:text-indigo-500'>Weather Report</a>."
     },
     "roads": {
         "sources": [
@@ -74,6 +76,7 @@ app = FastAPI()
 app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
 photos.install_routes(app, templates)
+weather.install_routes(app, templates)
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
@@ -95,7 +98,7 @@ async def fetch(url):
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "contexts": CONTEXT.keys()})
+    return templates.TemplateResponse("index.html", {"request": request, "contexts": CONTEXT.keys(), "contexts_data": CONTEXT})
 
 async def analyze_section(context):
     print(f"Analyzing data for context...")
