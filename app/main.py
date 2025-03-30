@@ -41,7 +41,6 @@ from app import traffic
 ha.install_routes(app, templates)
 photos.install_routes(app, templates)
 weather.install_routes(app, templates)
-traffic.install_routes(app, templates)
 
 # Register the traffic analyzer explicitly
 CONTEXT["traffic"] = traffic.get_traffic_context()
@@ -103,14 +102,6 @@ async def call_anthropic_api(model, messages, system=None, max_tokens=1024, temp
         except Exception as e:
             print(f"Error calling Anthropic API: {e}")
             raise
-
-@app.on_event("startup")
-async def startup_event():
-    app.state.http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await app.state.http_client.aclose()
 
 async def fetch(url, custom_app=None):
     """

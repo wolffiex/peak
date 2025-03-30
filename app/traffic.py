@@ -22,6 +22,12 @@ TRAFFIC_CAMERAS = [
         "segment": "Sierra"
     },
     {
+        "name": "US-50 at Sierra",
+        "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atsierraeb/hwy50atsierraeb.jpg?1743362080190",
+        "description": "Sierra-at-Tahoe I-50 intersection",
+        "segment": "Sierra"
+    },
+    {
         "name": "US-50 at Twin Bridges",
         "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50attwinbridges/hwy50attwinbridges.jpg",
         "description": "Twin Bridges - Mountain section near Sierra-at-Tahoe resort",
@@ -78,11 +84,17 @@ TRAFFIC_CAMERAS = [
         "segment": "Bay Area"
     },
     {
-        "name": "San Francisco (Ocean Beach)",
-        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv211us101greatgwyoceanbeach/tv211us101greatgwyoceanbeach.jpg",
-        "description": "Final destination - Ocean Beach in San Francisco's Outer Sunset district",
+        "name": "US 101 : After Bay Bridge",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg?1743361635041",
+        "description": "San Francisco, looking towards Bay Bridge",
         "segment": "Bay Area"
-    }
+    },
+    {
+        "name": "US-101 : San Francisco",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg?1743361669105",
+        "description": "South bound 101 at Ceasar Chavez before 280 exit",
+        "segment": "Bay Area"
+    },
 ]
 
 # Group cameras by segment for organization
