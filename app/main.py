@@ -6,10 +6,6 @@ from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from anthropic import Anthropic
 from datetime import datetime
-from app import ha
-from app import photos
-from app import weather
-from app import traffic
 import httpx
 import asyncio
 import os
@@ -20,14 +16,36 @@ from app.prompts import get_contexts, get_standard_system_prompt
 # Initialize CONTEXT from prompts module
 CONTEXT = get_contexts()
 
+# Dictionary to store custom analyzers for specific contexts
+CUSTOM_ANALYZERS = {}
+
+def register_custom_analyzer(context_name, analyzer_function):
+    """Register a custom analyzer function for a specific context"""
+    CUSTOM_ANALYZERS[context_name] = analyzer_function
+    print(f"Registered custom analyzer for context: {context_name}")
+
+# Create a FastAPI app and set up routes
 BASE_PATH = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_PATH / "templates"))
 app = FastAPI()
 app.mount("/dist", StaticFiles(directory="dist"), name="dist")
+
+# Import modules after initializing CONTEXT and registration functions
+# to avoid circular dependencies
+from app import ha
+from app import photos
+from app import weather
+from app import traffic
+
+# Now install routes from each module
 ha.install_routes(app, templates)
 photos.install_routes(app, templates)
 weather.install_routes(app, templates)
 traffic.install_routes(app, templates)
+
+# Register the traffic analyzer explicitly
+CONTEXT["traffic"] = traffic.get_traffic_context()
+register_custom_analyzer("traffic", traffic.analyze_traffic)
 # Set up Anthropic client
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 

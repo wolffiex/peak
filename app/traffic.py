@@ -289,18 +289,6 @@ def get_traffic_context():
     return get_contexts()["traffic"]
 
 def install_routes(app, templates):
-    """Install the traffic module context."""
-    # Don't import from main.py to avoid circular imports
-    # Instead, provide the traffic context and analyzer for main.py to use
-    
-    # Get a reference to the register_custom_analyzer function and CONTEXT dictionary
-    # from the main module without importing them
-    main_module = sys.modules.get('app.main')
-    if main_module:
-        # Add traffic context to the main CONTEXT dictionary
-        if hasattr(main_module, 'CONTEXT'):
-            main_module.CONTEXT['traffic'] = get_traffic_context()
-        
-        # Register our custom analyzer function
-        if hasattr(main_module, 'register_custom_analyzer'):
-            main_module.register_custom_analyzer("traffic", analyze_traffic)
+    """Install the traffic module routes if needed."""
+    # No routes needed for traffic analyzer currently
+    pass
