@@ -1,7 +1,7 @@
 <!doctype html>
 <html class="h-full">
     <head>
-        <title>Kirkwood Conditions</title>
+        <title>Peak Conditions</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link href="{{ url_for('dist', path='main.css') }}" rel="stylesheet" />
     </head>
@@ -9,14 +9,15 @@
         <div class="min-h-full">
             <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                 <h1 class="text-3xl font-bold text-gray-900 mb-8">
-                    Kirkwood Conditions
+                    Peak Conditions
                 </h1>
 
                 <div
                     class="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6"
                 >
-                    <!-- Include only Kirkwood-relevant sections -->
-                    {% for context_name in ['weather', 'roads', 'kirkwood'] %}
+                
+                    <!-- Include only desired sections -->
+                    {% for context_name in ['controls', 'weather', 'events', 'backcountry'] %}
                     <div
                         class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
                     >
@@ -28,6 +29,9 @@
                             </h2>
                         </div>
                         <div class="px-4 py-5 sm:p-6">
+                            {% if context_name == 'controls' %}
+                            <div data-controls-target></div>
+                            {% else %}
                             <div
                                 data-stream="{{ context_name }}"
                                 class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[12rem]"
@@ -35,6 +39,12 @@
                                 <div class="animate-pulse">Loading...</div>
                                 <p class="content"></p>
                             </div>
+                            {% if contexts_data[context_name] and contexts_data[context_name].footer %}
+                            <div class="mt-4 text-sm text-gray-600">
+                                {{ contexts_data[context_name].footer | safe }}
+                            </div>
+                            {% endif %}
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
