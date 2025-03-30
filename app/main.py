@@ -13,6 +13,7 @@ import httpx
 import asyncio
 import os
 import traceback
+from contextlib import asynccontextmanager
 
 CONTEXT = {
     # Weather context for the home page
@@ -134,8 +135,55 @@ app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
 photos.install_routes(app, templates)
 weather.install_routes(app, templates)
+# Set up Anthropic client
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+# Create a semaphore to limit concurrent API calls
+# Anthropic's rate limits vary by model, but we'll use a conservative limit
+anthropic_semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent API calls
+
+# HTTP client with timeout
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
+
+async def call_anthropic_api(model, messages, system=None, max_tokens=1024, temperature=0, stream=False):
+    """
+    Centralized function for all Anthropic API calls with concurrency control.
+    
+    Args:
+        model: The Claude model to use
+        messages: The conversation messages
+        system: Optional system prompt
+        max_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        stream: Whether to stream the response
+        
+    Returns:
+        The API response
+    """
+    print(f"Calling Anthropic API with model: {model}")
+    
+    # Use semaphore to control concurrency
+    async with anthropic_semaphore:
+        try:
+            # Create the API parameters
+            params = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": messages,
+                "stream": stream
+            }
+            
+            # Add system prompt if provided
+            if system:
+                params["system"] = system
+                
+            # Make the API call
+            response = anthropic.messages.create(**params)
+            return response
+        except Exception as e:
+            print(f"Error calling Anthropic API: {e}")
+            raise
 
 @app.on_event("startup")
 async def startup_event():
@@ -145,9 +193,15 @@ async def startup_event():
 async def shutdown_event():
     await app.state.http_client.aclose()
 
-async def fetch(url):
+async def fetch(url, custom_app=None):
+    """
+    Fetch data from a URL using the app's HTTP client.
+    Accepts an optional custom_app parameter to support CLI usage.
+    """
     print(f"Fetching {url}...")
-    response = await app.state.http_client.get(url)
+    # Use the provided custom_app or the global app
+    client_app = custom_app or app
+    response = await client_app.state.http_client.get(url)
     print(f"Got response from {url}: {response.status_code}")
     text = response.text
     print(f"Response length: {len(text)} characters")
@@ -192,18 +246,21 @@ async def preprocess_events_data(sources, results):
     })
     
     try:
-        # Use Claude Haiku for faster preprocessing
-        haiku_response = anthropic.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=4000,
-            temperature=0,
-            system="""You extract and list events from provided sources without adding commentary.
+        # Use Claude Haiku for faster preprocessing through our centralized API function
+        haiku_system = """You extract and list events from provided sources without adding commentary.
             You know South Lake Tahoe geography well. South Lake Tahoe refers to the city on the California side 
             and Stateline refers to the Nevada side with casinos (Harrah's, Harvey's, Hard Rock, and Bally's).
             Meyers is just south of South Lake Tahoe.
             Heavenly Village, Lakeview Commons, MontBleu, and the Shops at Heavenly are all in South Lake Tahoe/Stateline area.
-            When an event's location is listed as "Lake Tahoe" with no further specification, check the venue name to determine if it's in South Lake.""",
-            messages=messages
+            When an event's location is listed as "Lake Tahoe" with no further specification, check the venue name to determine if it's in South Lake."""
+            
+        haiku_response = await call_anthropic_api(
+            model="claude-3-5-haiku-20241022",
+            messages=messages,
+            system=haiku_system,
+            max_tokens=4000,
+            temperature=0,
+            stream=False
         )
         
         # Return the extracted list of events
@@ -213,11 +270,11 @@ async def preprocess_events_data(sources, results):
         # Fallback to a simple message if preprocessing fails
         return "Unable to extract events due to content size limitations. Please check the original sources for complete event listings."
 
-async def analyze_section(context):
+async def analyze_section(context, custom_app=None):
     print(f"Analyzing data for context...")
     
-    # Fetch all sources in parallel
-    results = await asyncio.gather(*[fetch(source["url"]) for source in context["sources"]])
+    # Fetch all sources in parallel, using custom_app if provided
+    results = await asyncio.gather(*[fetch(source["url"], custom_app) for source in context["sources"]])
     
     # Special handling for events context - use pre-processing with a smaller model
     if context.get("name") == "events":
@@ -266,11 +323,7 @@ async def analyze_section(context):
             "content": context["final_prompt"]
         })
     
-    message = anthropic.messages.create(
-        model="claude-3-opus-20240229",
-        max_tokens=1024,
-        temperature=0,
-        system = f"""
+    system_prompt = f"""
 You are an expert local providing clear, practical information about current conditions in the mountains.
 The current date and time is {datetime.now().strftime('%A, %B %d at %I:%M %p Pacific')}.
 You are based in South Lake Tahoe (specifically Meyers). When discussing events or locations:
@@ -283,8 +336,15 @@ Write like you're texting a friend about cool things happening in town - relaxed
 Avoid technical jargon unless it's essential for safety or clarity.
 Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
 Don't end responses with a follow-up.
-        """.strip(),
+        """.strip()
+
+    # Use our centralized function with concurrency control
+    message = await call_anthropic_api(
+        model="claude-3-opus-20240229",
         messages=messages,
+        system=system_prompt,
+        max_tokens=1024,
+        temperature=0,
         stream=True
     )
     return message
