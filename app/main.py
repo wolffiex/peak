@@ -66,12 +66,46 @@ CONTEXT = {
                        "If these specific sections aren't mentioned in the alerts, then the road is open."
     },
     "events": {
-        "sources": [{
-            "url": "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
-            "intro": "Here are the upcoming events in Lake Tahoe:"
-        }],
-        "final_prompt": "Make a list of the top upcoming events in the next week. " +
-                       "Follow the list with an enthusiastic pick for one of the events."
+        "name": "events", # Used to identify this context for special processing
+        "sources": [
+            {
+                "url": "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
+                "intro": "Here are the upcoming events from Visit Lake Tahoe. Many of these events could be in North Lake Tahoe or other areas - ONLY extract events specifically in South Lake Tahoe, Meyers, or Stateline:"
+            },
+            {
+                "url": "https://www.tahoedailytribune.com/entertainment/calendar/",
+                "intro": "Here are the events from Tahoe Daily Tribune calendar. " +
+                "ONLY extract events that are specifically in South Lake Tahoe, Meyers, or Stateline - discard any events in other locations."
+            },
+            {
+                "url": "https://www.caesars.com/harrahs-tahoe/things-to-do/events",
+                "intro": "Here are the events from Harrah's Lake Tahoe:"
+            },
+            {
+                "url": "https://www.caesars.com/harveys-tahoe/shows",
+                "intro": "Here are the shows at Harvey's Lake Tahoe:"
+            },
+            {
+                "url": "https://casinos.ballys.com/lake-tahoe/entertainment.htm",
+                "intro": "Here are events from Bally's Lake Tahoe:"
+            }
+        ],
+        "preprocessing_prompt": "Extract all upcoming events from these sources. Include events that are ACTUALLY happening in South Lake Tahoe, Meyers, or Stateline. " +
+                              "Pay special attention to the event venue and location. Harrah's, Harvey's, Hard Rock, and Bally's are all located in Stateline. " +
+                              "South Lake Tahoe has many venues including Lakeview Commons, Heavenly Village, Valhalla, and South Lake Brewing. " +
+                              "Exclude events from North Lake Tahoe areas (Truckee, Tahoe City, Palisades Tahoe, Northstar, Incline Village, etc). " +
+                              "For each event, include: " +
+                              "1) Name of event 2) Date and time 3) Specific venue name and location 4) Brief description if available. " +
+                              "Format as a simple list with date, name, and venue. Do not add any introduction or conclusion text.",
+        "final_prompt": "Create a casual, conversational list of the most interesting upcoming events in South Lake Tahoe for the next 7-10 days. " +
+                       "There ARE events happening in South Lake Tahoe, Meyers, and Stateline - the casinos like Harrah's and Harvey's always have shows and entertainment. " +
+                       "Only list events that are actually in South Lake Tahoe, Meyers, or Stateline - exclude North Lake Tahoe. " +
+                       "Organize the events chronologically by date and include the specific venue for each. " +
+                       "Include at least 5 different events if available across different venues. " +
+                       "Focus on a diverse mix of entertainment, music, arts, and outdoor activities. " +
+                       "For each event, mention the day, date, name, venue, and a brief, casual description that captures what makes it fun or interesting. " +
+                       "Mention time but DON'T focus on ticket prices or technical details. Keep descriptions short, conversational and engaging. " +
+                       "End with an enthusiastic recommendation for your top pick of the events."
     },
     "backcountry": {
         "sources": [{
@@ -127,25 +161,110 @@ async def root(request: Request):
 async def kirkwood(request: Request):
     return templates.TemplateResponse("kirkwood.html", {"request": request, "contexts_data": CONTEXT})
 
+async def preprocess_events_data(sources, results):
+    """
+    Uses a smaller, faster model to extract and summarize events data
+    before passing to the main model for curation.
+    """
+    print("Preprocessing events data with Haiku...")
+    
+    # Build messages list with intro data pairs, but truncate long content
+    messages = []
+    MAX_CHARS_PER_SOURCE = 50000  # Conservative limit per source
+    
+    for source, data in zip(sources, results):
+        # Truncate data if it's too long
+        if len(data) > MAX_CHARS_PER_SOURCE:
+            print(f"Truncating source data from {len(data)} to {MAX_CHARS_PER_SOURCE} characters...")
+            truncated_data = data[:MAX_CHARS_PER_SOURCE] + "\n\n[Content truncated due to length...]"
+        else:
+            truncated_data = data
+            
+        messages.extend([
+            {"role": "user", "content": source["intro"]},
+            {"role": "user", "content": truncated_data}
+        ])
+    
+    # Add the preprocessing prompt
+    messages.append({
+        "role": "user", 
+        "content": CONTEXT["events"]["preprocessing_prompt"]
+    })
+    
+    try:
+        # Use Claude Haiku for faster preprocessing
+        haiku_response = anthropic.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=4000,
+            temperature=0,
+            system="""You extract and list events from provided sources without adding commentary.
+            You know South Lake Tahoe geography well. South Lake Tahoe refers to the city on the California side 
+            and Stateline refers to the Nevada side with casinos (Harrah's, Harvey's, Hard Rock, and Bally's).
+            Meyers is just south of South Lake Tahoe.
+            Heavenly Village, Lakeview Commons, MontBleu, and the Shops at Heavenly are all in South Lake Tahoe/Stateline area.
+            When an event's location is listed as "Lake Tahoe" with no further specification, check the venue name to determine if it's in South Lake.""",
+            messages=messages
+        )
+        
+        # Return the extracted list of events
+        return haiku_response.content[0].text
+    except Exception as e:
+        print(f"Error in preprocessing events: {e}")
+        # Fallback to a simple message if preprocessing fails
+        return "Unable to extract events due to content size limitations. Please check the original sources for complete event listings."
+
 async def analyze_section(context):
     print(f"Analyzing data for context...")
     
     # Fetch all sources in parallel
     results = await asyncio.gather(*[fetch(source["url"]) for source in context["sources"]])
     
-    # Build messages list with intros and data
-    messages = []
-    for source, data in zip(context["sources"], results):
-        messages.extend([
-            {"role": "user", "content": source["intro"]},
-            {"role": "user", "content": data}
-        ])
-    
-    # Add the final prompt
-    messages.append({
-        "role": "user",
-        "content": context["final_prompt"]
-    })
+    # Special handling for events context - use pre-processing with a smaller model
+    if context.get("name") == "events":
+        print("Using special events processing pipeline...")
+        
+        try:
+            # First, extract a raw list of events using a smaller model
+            raw_events_list = await preprocess_events_data(context["sources"], results)
+            
+            # Then pass this condensed list to the main model
+            messages = [
+                {"role": "user", "content": "Here's a processed list of upcoming events in Lake Tahoe:"},
+                {"role": "user", "content": raw_events_list},
+                {"role": "user", "content": context["final_prompt"]}
+            ]
+        except Exception as e:
+            print(f"Error in events pipeline, falling back to standard processing: {e}")
+            # If the events pipeline fails, fall back to standard processing with truncated data
+            messages = []
+            MAX_CHARS = 30000  # Even more conservative limit for fallback
+            
+            for source, data in zip(context["sources"], results):
+                truncated_data = data[:MAX_CHARS] if len(data) > MAX_CHARS else data
+                messages.extend([
+                    {"role": "user", "content": source["intro"]},
+                    {"role": "user", "content": truncated_data}
+                ])
+            
+            messages.append({
+                "role": "user",
+                "content": context["final_prompt"] + " Note: Some event data may have been truncated due to size constraints."
+            })
+    else:
+        # Standard processing for other contexts
+        # Build messages list with intros and data
+        messages = []
+        for source, data in zip(context["sources"], results):
+            messages.extend([
+                {"role": "user", "content": source["intro"]},
+                {"role": "user", "content": data}
+            ])
+        
+        # Add the final prompt
+        messages.append({
+            "role": "user",
+            "content": context["final_prompt"]
+        })
     
     message = anthropic.messages.create(
         model="claude-3-opus-20240229",
@@ -154,7 +273,13 @@ async def analyze_section(context):
         system = f"""
 You are an expert local providing clear, practical information about current conditions in the mountains.
 The current date and time is {datetime.now().strftime('%A, %B %d at %I:%M %p Pacific')}.
+You are based in South Lake Tahoe (specifically Meyers). When discussing events or locations:
+- South Lake Tahoe, Meyers, and Stateline (Nevada) are considered local.
+- North Lake Tahoe areas like Tahoe City, Kings Beach, Incline Village, and Truckee are considered separate.
+- Palisades Tahoe (formerly Squaw Valley) and Northstar are in North Lake Tahoe, about 45-60 minutes away.
 Present information in a natural, conversational way that helps people plan their day. Focus on what's relevant and actionable.
+When describing events, be casual and engaging - mention what makes each event special in a brief, lively way.
+Write like you're texting a friend about cool things happening in town - relaxed, personal, and enthusiastic.
 Avoid technical jargon unless it's essential for safety or clarity.
 Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
 Don't end responses with a follow-up.
