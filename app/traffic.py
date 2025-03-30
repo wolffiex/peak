@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 import httpx
 import asyncio
+import sys
 from datetime import datetime
 import pytz
 from anthropic import Anthropic
@@ -9,6 +10,7 @@ import base64
 from bs4 import BeautifulSoup
 import re
 from io import BytesIO
+from app.prompts import get_traffic_system_prompt, TRAFFIC_CAMERA_PROMPT
 
 # Define traffic cameras along the route from South Lake Tahoe to SF
 TRAFFIC_CAMERAS = [
@@ -158,6 +160,11 @@ async def analyze_camera_image(camera_data):
     
     try:
         # Prepare the prompt with the image
+        camera_text = TRAFFIC_CAMERA_PROMPT.format(
+            camera_name=camera_data['camera']['name'],
+            camera_description=camera_data['camera']['description']
+        )
+        
         messages = [
             {
                 "role": "user", 
@@ -172,7 +179,7 @@ async def analyze_camera_image(camera_data):
                     },
                     {
                         "type": "text",
-                        "text": f"This is a traffic camera image from {camera_data['camera']['name']} ({camera_data['camera']['description']}). Describe the current road conditions very briefly (1-2 sentences max). Focus on traffic flow, weather impacts on the road, and any visible issues. Be concise."
+                        "text": camera_text
                     }
                 ]
             }
@@ -234,14 +241,8 @@ async def generate_traffic_summary(mountain_analyses, valley_analyses):
         date_time_str = current_time.strftime('%A, %B %d at %I:%M %p Pacific')
         day_of_week = current_time.strftime('%A')
         
-        system_prompt = f"""
-You are providing traffic information for the drive from South Lake Tahoe to Ocean Beach in San Francisco.
-Today is {day_of_week}, {date_time_str}.
-Present information in a natural, conversational way that helps people plan their drive.
-Focus on what's relevant and actionable about road conditions.
-Never start responses with greetings like "Hey there", "Hi", or "Here's" - jump straight into the information.
-Don't end with questions or follow-ups.
-        """.strip()
+        # Use the system prompt from prompts module
+        system_prompt = get_traffic_system_prompt(day_of_week, date_time_str)
         
         response = anthropic_client.messages.create(
             model="claude-3-opus-20240229",
@@ -282,19 +283,24 @@ async def analyze_traffic():
         print(f"Error in traffic analysis pipeline: {str(e)}")
         return f"Unable to analyze traffic conditions: {str(e)}"
 
+def get_traffic_context():
+    """Return the traffic context dictionary."""
+    from app.prompts import get_contexts
+    return get_contexts()["traffic"]
+
 def install_routes(app, templates):
     """Install the traffic module context."""
-    from app.main import CONTEXT, register_custom_analyzer
+    # Don't import from main.py to avoid circular imports
+    # Instead, provide the traffic context and analyzer for main.py to use
     
-    # Add traffic context to the main CONTEXT dictionary
-    CONTEXT["traffic"] = {
-        "name": "traffic",  # Used to identify this context for special processing
-        "sources": [
-            # We'll use custom fetch logic, but need this for structure
-            {"url": "traffic_cameras", "intro": "Here are the current traffic conditions:"}
-        ],
-        "final_prompt": "Give a casual, conversational summary of the drive from South Lake Tahoe to Ocean Beach in San Francisco. Describe the route: US-50 from Tahoe to Sacramento, then I-80 through Davis, Vacaville, Fairfield, Vallejo, across the Bay Bridge to SF, and then to Ocean Beach in the Outer Sunset. Mention any issues like snow at Echo Summit, chain controls, or traffic congestion spots. What's the expected drive time and are there any problem areas today?"
-    }
-    
-    # Register our custom analyzer function
-    register_custom_analyzer("traffic", analyze_traffic)
+    # Get a reference to the register_custom_analyzer function and CONTEXT dictionary
+    # from the main module without importing them
+    main_module = sys.modules.get('app.main')
+    if main_module:
+        # Add traffic context to the main CONTEXT dictionary
+        if hasattr(main_module, 'CONTEXT'):
+            main_module.CONTEXT['traffic'] = get_traffic_context()
+        
+        # Register our custom analyzer function
+        if hasattr(main_module, 'register_custom_analyzer'):
+            main_module.register_custom_analyzer("traffic", analyze_traffic)
