@@ -15,15 +15,38 @@ import os
 import traceback
 
 CONTEXT = {
+    # Weather context for the home page
     "weather": {
+        "sources": [
+            {
+                "url": "https://forecast.weather.gov/MapClick.php?lat=38.8504&lon=-120.019&unit=0&lg=english&FcstType=dwml",
+                "intro": "Here's the current weather forecast for Strawberry/South Lake Tahoe:"
+            },
+            {
+                "url": "http://localhost:8000/weather",
+                "intro": "Here are the current readings from our local weather station:"
+            }
+        ],
+        "final_prompt": "Give a casual, friendly description of the weather right here in Meyers. " +
+                       "Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor. " +
+                       "For example: 'It's a chilly 38° here in Meyers right now with clear skies.' " +
+                       "Blend in the weather station data naturally without listing statistics. " +
+                       "Mention if it's particularly humid, if the barometer is rising/falling, or if there's barely any wind. " +
+                       f"The current time is {datetime.now().strftime('%A, %B %d at %I:%M %p')}. " +
+                       "After the current conditions, tell us what to expect today/tomorrow and through the week. " +
+                       "Be enthusiastic about any exciting weather patterns coming - especially snow! " +
+                       "End with a casual recommendation for outdoor activities given the forecast."
+    },
+    
+    # Weather context for the Kirkwood page
+    "kirkwood_weather": {
         "sources": [{
             "url": "https://forecast.weather.gov/MapClick.php?lat=38.7369&lon=-120.2385&unit=0&lg=english&FcstType=dwml",
             "intro": "Here's the current weather forecast for Kirkwood:"
         }],
-        "final_prompt": "Give a casual, conversational description of the weather ahead. " +
+        "final_prompt": "Give a casual, conversational description of the weather ahead for Kirkwood. " +
                        "Start with today and tomorrow, then mention anything notable later in the week. " +
-                       "Keep it natural and get excited about snow.",
-        "footer": "For detailed local weather data, check the <a href='/weather' class='text-indigo-600 hover:text-indigo-500'>Weather Report</a>."
+                       "Keep it natural and get excited about snow conditions.",
     },
     "roads": {
         "sources": [

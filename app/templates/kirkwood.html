@@ -16,7 +16,7 @@
                     class="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6"
                 >
                     <!-- Include only Kirkwood-relevant sections -->
-                    {% for context_name in ['weather', 'roads', 'kirkwood'] %}
+                    {% for context_name in ['kirkwood_weather', 'roads', 'kirkwood'] %}
                     <div
                         class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
                     >
@@ -24,7 +24,11 @@
                             <h2
                                 class="text-lg font-medium text-gray-900 capitalize"
                             >
-                                {{ context_name }}
+                                {% if context_name == 'kirkwood_weather' %}
+                                    weather
+                                {% else %}
+                                    {{ context_name }}
+                                {% endif %}
                             </h2>
                         </div>
                         <div class="px-4 py-5 sm:p-6">
