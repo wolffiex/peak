@@ -9,6 +9,7 @@ from datetime import datetime
 from app import ha
 from app import photos
 from app import weather
+from app import traffic
 import httpx
 import asyncio
 import os
@@ -135,6 +136,7 @@ app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
 photos.install_routes(app, templates)
 weather.install_routes(app, templates)
+traffic.install_routes(app, templates)
 # Set up Anthropic client
 anthropic = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -144,6 +146,14 @@ anthropic_semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent API calls
 
 # HTTP client with timeout
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
+
+# Dictionary to store custom analyzers for specific contexts
+CUSTOM_ANALYZERS = {}
+
+def register_custom_analyzer(context_name, analyzer_function):
+    """Register a custom analyzer function for a specific context"""
+    CUSTOM_ANALYZERS[context_name] = analyzer_function
+    print(f"Registered custom analyzer for context: {context_name}")
 
 async def call_anthropic_api(model, messages, system=None, max_tokens=1024, temperature=0, stream=False):
     """
@@ -271,9 +281,43 @@ async def preprocess_events_data(sources, results):
         return "Unable to extract events due to content size limitations. Please check the original sources for complete event listings."
 
 async def analyze_section(context, custom_app=None):
-    print(f"Analyzing data for context...")
+    print(f"Analyzing data for context: {context.get('name', 'unnamed')}")
     
-    # Fetch all sources in parallel, using custom_app if provided
+    # Check if there's a custom analyzer for this context
+    if context.get("name") in CUSTOM_ANALYZERS:
+        print(f"Using custom analyzer for {context.get('name')}")
+        try:
+            # Use the custom analyzer and return its streaming response
+            custom_result = await CUSTOM_ANALYZERS[context.get("name")]()
+            
+            # For custom analyzers that don't return a stream, wrap the result in a stream
+            if isinstance(custom_result, str):
+                class SimpleStream:
+                    def __init__(self, text):
+                        self.text = text
+                        self.sent = False
+                        
+                    def __aiter__(self):
+                        return self
+                        
+                    async def __anext__(self):
+                        if self.sent:
+                            raise StopAsyncIteration
+                        self.sent = True
+                        return type('ContentBlockDelta', (), {
+                            'type': 'content_block_delta',
+                            'delta': type('TextDelta', (), {'text': self.text})
+                        })
+                
+                return SimpleStream(custom_result)
+            
+            # If it's already a stream, return it directly
+            return custom_result
+        except Exception as e:
+            print(f"Error in custom analyzer for {context.get('name')}: {e}")
+            # Fall back to standard processing
+            
+    # Standard processing path - fetch all sources
     results = await asyncio.gather(*[fetch(source["url"], custom_app) for source in context["sources"]])
     
     # Special handling for events context - use pre-processing with a smaller model

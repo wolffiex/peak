@@ -7,3 +7,4 @@ httpx
 beautifulsoup4
 pytz
 psycopg2-binary
+Pillow
