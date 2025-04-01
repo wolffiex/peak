@@ -7,6 +7,9 @@ from sse_starlette.sse import EventSourceResponse
 from datetime import datetime
 import asyncio
 import traceback
+from app import ha
+from app import weather
+from app import traffic
 
 # Create a FastAPI app and set up routes
 BASE_PATH = Path(__file__).resolve().parent
@@ -14,22 +17,14 @@ templates = Jinja2Templates(directory=str(BASE_PATH / "templates"))
 app = FastAPI()
 app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 
-# Import modules after initializing CONTEXT and registration functions
-# to avoid circular dependencies
-from app import ha
-from app import photos
-from app import weather
-from app import traffic
-
-# Now install routes from each module
 ha.install_routes(app, templates)
-photos.install_routes(app, templates)
 weather.install_routes(app, templates)
+traffic.install_routes(app, templates)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    context_names = ["controls", "weather", "traffic", "events", "backcountry"]
+    context_names = ["controls", "weather", "events", "backcountry"]
     return templates.TemplateResponse(
         "home.html", {"request": request, "context_names": context_names}
     )

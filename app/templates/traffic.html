@@ -4,37 +4,64 @@
         <title>Traffic Conditions</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link href="{{ url_for('dist', path='main.css') }}" rel="stylesheet" />
+        <style>
+            .camera-container {
+                max-width: 450px;
+                margin: 0 auto;
+                margin-bottom: 1.5rem;
+            }
+            .main-container {
+                max-width: 1000px; 
+                margin: 0 auto;
+            }
+            .section-container {
+                margin-bottom: 4rem;
+            }
+            .text-center-important {
+                text-align: center !important;
+            }
+            .centered-element {
+                text-align: center !important;
+                margin: 0 auto !important;
+            }
+            .caption-container {
+                padding: 0.75rem;
+                padding-bottom: 1.25rem;
+            }
+        </style>
     </head>
     <body class="h-full bg-gray-50">
         <div class="min-h-full">
-            <div class="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                <h1 class="text-3xl font-bold text-gray-900 mb-8">
+            <div class="py-6 px-4 sm:px-6 lg:px-8 main-container">
+                <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">
                     Traffic Cameras
                 </h1>
 
-                <div class="space-y-8">
+                <div>
                     {% for section, cameras in sections.items() %}
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                            <h2 class="text-xl font-medium text-gray-900">
+                    <div class="bg-white rounded-lg shadow overflow-hidden section-container">
+                        <div class="px-6 py-6 sm:px-8 border-b border-gray-200 text-center-important">
+                            <h2 class="text-xl font-medium text-gray-900 centered-element">
                                 {{ section }}
                             </h2>
                         </div>
-                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 justify-items-center">
                             {% for camera in cameras %}
-                            <div class="bg-gray-50 rounded-lg overflow-hidden shadow">
-                                <div class="p-3 border-b border-gray-200">
-                                    <h3 class="text-md font-medium text-gray-900">{{ camera.name }}</h3>
+                            <div class="bg-gray-50 rounded-lg overflow-hidden shadow camera-container">
+                                <div class="p-3 border-b border-gray-200 text-center-important">
+                                    <h3 class="text-md font-medium text-gray-900 centered-element">{{ camera.name }}</h3>
                                 </div>
-                                <div class="relative aspect-video overflow-hidden">
+                                <div class="relative aspect-video overflow-hidden text-center-important">
                                     <img 
                                         src="/traffic/img?url={{ camera.url | urlencode }}" 
                                         alt="{{ camera.name }}" 
                                         class="w-full h-full object-cover"
+                                        loading="lazy"
+                                        style="margin: 0 auto !important;"
                                     />
                                 </div>
-                                <div class="p-3">
-                                    <p class="text-sm text-gray-600">{{ camera.description }}</p>
+                                <div class="caption-container text-center-important">
+                                    <p class="text-sm text-gray-600 centered-element">{{ camera.description }}</p>
                                 </div>
                             </div>
                             {% endfor %}
@@ -44,6 +71,5 @@
                 </div>
             </div>
         </div>
-
     </body>
 </html>

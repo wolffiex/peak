@@ -1,0 +1,83 @@
+INFO:     Will watch for changes in these directories: ['/home/adam/code/peak']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [2515603] using StatReload
+INFO:     Started server process [2515618]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     100.96.79.92:56765 - "GET /traffic HTTP/1.1" 200 OK
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atechosummit/hwy50atechosummit.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56765 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atechosummit/hwy50atechosummit.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atsierraeb/hwy50atsierraeb.jpg?1743362080190: name 'httpx' is not defined
+INFO:     100.96.79.92:56766 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atsierraeb/hwy50atsierraeb.jpg%3F1743362080190 HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50attwinbridges/hwy50attwinbridges.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56767 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50attwinbridges/hwy50attwinbridges.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atbedford/hwy50atbedford.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56768 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atbedford/hwy50atbedford.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atjct51992/hwy50atjct51992.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56769 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atjct51992/hwy50atjct51992.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy80atchiles/hwy80atchiles.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56770 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy80atchiles/hwy80atchiles.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv998i80nuttreeroad/tv998i80nuttreeroad.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56765 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv998i80nuttreeroad/tv998i80nuttreeroad.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv501i80oliverroad/tv501i80oliverroad.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56767 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv501i80oliverroad/tv501i80oliverroad.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv962i80atjworedwoodpkwy/tv962i80atjworedwoodpkwy.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56766 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv962i80atjworedwoodpkwy/tv962i80atjworedwoodpkwy.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv516i80westofashbyavenue/tv516i80westofashbyavenue.jpg: name 'httpx' is not defined
+INFO:     100.96.79.92:56769 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv516i80westofashbyavenue/tv516i80westofashbyavenue.jpg HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg?1743361635041: name 'httpx' is not defined
+INFO:     100.96.79.92:56768 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg%3F1743361635041 HTTP/1.1" 404 Not Found
+Error fetching image https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg?1743361669105: name 'httpx' is not defined
+INFO:     100.96.79.92:56765 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg%3F1743361669105 HTTP/1.1" 404 Not Found
+WARNING:  StatReload detected changes in 'app/traffic.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2515618]
+INFO:     Started server process [2517280]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:59110 - "GET /api/weather/scrape HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56913 - "GET /traffic HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56920 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atbedford/hwy50atbedford.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56913 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atechosummit/hwy50atechosummit.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56918 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atsierraeb/hwy50atsierraeb.jpg%3F1743362080190 HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56921 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atjct51992/hwy50atjct51992.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56922 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy80atchiles/hwy80atchiles.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56918 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv516i80westofashbyavenue/tv516i80westofashbyavenue.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56920 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv998i80nuttreeroad/tv998i80nuttreeroad.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56921 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv501i80oliverroad/tv501i80oliverroad.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56922 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg%3F1743361635041 HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56913 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv962i80atjworedwoodpkwy/tv962i80atjworedwoodpkwy.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56918 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg%3F1743361669105 HTTP/1.1" 200 OK
+INFO:     100.96.79.92:56919 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50attwinbridges/hwy50attwinbridges.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55546 - "GET /api/weather/scrape HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/traffic.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2517280]
+INFO:     Started server process [2524285]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:48712 - "GET /api/weather/scrape HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48150 - "GET /api/weather/scrape HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41338 - "GET /api/weather/scrape HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58009 - "GET /traffic HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58014 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atjct51992/hwy50atjct51992.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58013 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atbedford/hwy50atbedford.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58010 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv998i80nuttreeroad/tv998i80nuttreeroad.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58009 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atechosummit/hwy50atechosummit.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58012 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50attwinbridges/hwy50attwinbridges.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58011 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atsierraeb/hwy50atsierraeb.jpg%3F1743362080190 HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58014 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d3/cctv/image/hwy80atchiles/hwy80atchiles.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58013 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv501i80oliverroad/tv501i80oliverroad.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58010 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv962i80atjworedwoodpkwy/tv962i80atjworedwoodpkwy.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58009 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv516i80westofashbyavenue/tv516i80westofashbyavenue.jpg HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58012 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg%3F1743361635041 HTTP/1.1" 200 OK
+INFO:     100.96.79.92:58011 - "GET /traffic/img?url=https%3A//cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg%3F1743361669105 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2524285]
+INFO:     Stopping reloader process [2515603]
