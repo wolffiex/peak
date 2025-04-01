@@ -3,6 +3,7 @@ from .api import call_anthropic_api, stream_anthropic_api
 from .http import fetch_all
 from .prompts import get_standard_system_prompt
 import asyncio
+from bs4 import BeautifulSoup
 
 # Events context prompts
 EVENTS_PREPROCESSING_PROMPT = """
@@ -33,29 +34,25 @@ Mention time but DON'T focus on ticket prices or technical details. Keep descrip
 End with an enthusiastic recommendation for your top pick of the events.
 """
 
-SOURCES = [
-    {
-        "url": "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
-        "intro": "Here are the upcoming events from Visit Lake Tahoe. Many of these events could be in North Lake Tahoe or other areas - ONLY extract events specifically in South Lake Tahoe, Meyers, or Stateline:",
-    },
-    {
-        "url": "https://www.tahoedailytribune.com/entertainment/calendar/",
-        "intro": "Here are the events from Tahoe Daily Tribune calendar. "
-        + "ONLY extract events that are specifically in South Lake Tahoe, Meyers, or Stateline - discard any events in other locations.",
-    },
-    {
-        "url": "https://www.caesars.com/harrahs-tahoe/things-to-do/events",
-        "intro": "Here are the events from Harrah's Lake Tahoe:",
-    },
-    {
-        "url": "https://www.caesars.com/harveys-tahoe/shows",
-        "intro": "Here are the shows at Harvey's Lake Tahoe:",
-    },
-    {
-        "url": "https://casinos.ballys.com/lake-tahoe/entertainment.htm",
-        "intro": "Here are events from Bally's Lake Tahoe:",
-    },
-]
+
+def get_sources():
+    from datetime import datetime, timedelta
+
+    # Get today's date and 10 days from now
+    today = datetime.now().strftime("%Y-%m-%d")
+    ten_days_later = (datetime.now() + timedelta(days=10)).strftime("%Y-%m-%d")
+
+    return [
+        {
+            "url": "https://visitlaketahoe.com/events/?event-duration=next-7-days&page-num=1&event-category=167+160+168",
+            "intro": "Here are the upcoming events from Visit Lake Tahoe. Many of these events could be in North Lake Tahoe or other areas - ONLY extract events specifically in South Lake Tahoe, Meyers, or Stateline:",
+        },
+        {
+            "url": f"https://tahoe.com/content-embed/get-content?s=all&type=event&cb=1743481352&start={today}&end={ten_days_later}",
+            "intro": "Here are the events from Tahoe Daily Tribune calendar. "
+            + "ONLY extract events that are specifically in South Lake Tahoe, Meyers, or Stateline - discard any events in other locations.",
+        },
+    ]
 
 
 def preprocess_events_data(intros, results):
@@ -70,7 +67,8 @@ def preprocess_events_data(intros, results):
     awaitables = []
     MAX_CHARS_PER_SOURCE = 50000  # Conservative limit per source
 
-    for i, (intro, data) in enumerate(zip(intros, results)):
+    for intro, raw_data in zip(intros, results):
+        data = remove_javascript(raw_data)
         # Truncate data if it's too long
         if len(data) > MAX_CHARS_PER_SOURCE:
             truncated_data = (
@@ -85,7 +83,7 @@ def preprocess_events_data(intros, results):
             {"role": "user", "content": truncated_data},
             {"role": "user", "content": EVENTS_PREPROCESSING_PROMPT},
         ]
-        
+
         # Create an actual coroutine for each source and add it to awaitables
         # This is key - we're creating a coroutine object, not calling the API yet
         coroutine = call_anthropic_api(
@@ -96,26 +94,42 @@ def preprocess_events_data(intros, results):
             temperature=0,
         )
         awaitables.append(coroutine)
-    
+
     return awaitables
 
 
+def remove_javascript(html_content):
+    """Remove JavaScript blocks from HTML content"""
+    soup = BeautifulSoup(html_content, "html.parser")
+
+    # Remove script tags
+    for script in soup.find_all("script"):
+        script.decompose()
+
+    # Return the cleaned HTML
+    return str(soup)
+
+
 async def gen_events() -> AsyncGenerator[Any, None]:
+    # Get the dynamic sources
+    sources = get_sources()
+
     # First, extract a raw list of events using a smaller model
-    results = await fetch_all([source["url"] for source in SOURCES])
-    
+    results = await fetch_all([source["url"] for source in sources])
+
     # Get awaitables for preprocessing each source
     preprocessing_awaitables = preprocess_events_data(
-        [source["intro"] for source in SOURCES], results
+        [source["intro"] for source in sources], results
     )
-    
+
     # Await all preprocessing tasks
     preprocessing_responses = await asyncio.gather(*preprocessing_awaitables)
-    
+
     # Combine results from all sources
-    raw_events_list = "\n\n".join([
-        response.content[0].text for response in preprocessing_responses
-    ])
+    raw_events_list = "\n\n".join(
+        [response.content[0].text for response in preprocessing_responses]
+    )
+    print(raw_events_list)
 
     # Then pass this condensed list to the main model
     messages = [
@@ -134,4 +148,3 @@ async def gen_events() -> AsyncGenerator[Any, None]:
         temperature=0,
     ):
         yield chunk
-

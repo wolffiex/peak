@@ -197,4 +197,3 @@ def get_contexts():
             "final_prompt": TRAFFIC_FINAL_PROMPT.strip(),
         },
     }
-

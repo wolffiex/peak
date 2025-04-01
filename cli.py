@@ -5,6 +5,7 @@ import sys
 import os
 import httpx
 from fastapi import FastAPI
+from app.http import fetch
 from app.traffic import analyze_traffic
 from app.events import gen_events
 
