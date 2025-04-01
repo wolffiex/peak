@@ -17,7 +17,7 @@
                 >
                 
                     <!-- Include only desired sections -->
-                    {% for context_name in ['controls', 'weather', 'traffic', 'events', 'backcountry'] %}
+                    {% for context_name in context_names %}
                     <div
                         class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
                     >
@@ -39,11 +39,6 @@
                                 <div class="animate-pulse">Loading...</div>
                                 <p class="content"></p>
                             </div>
-                            {% if contexts_data[context_name] and contexts_data[context_name].footer %}
-                            <div class="mt-4 text-sm text-gray-600">
-                                {{ contexts_data[context_name].footer | safe }}
-                            </div>
-                            {% endif %}
                             {% endif %}
                         </div>
                     </div>
