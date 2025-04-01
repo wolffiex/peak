@@ -1,71 +1,73 @@
 interface StreamBlock extends HTMLElement {
-    dataset: {
-        stream: string;
-    };
+  dataset: {
+    stream: string;
+  };
 }
 
-declare global {
-    interface Window {
-        updateControl: (entityId: string, currentState: string) => void;
-    }
-}
+globalThis.updateControl = async (entityId: string, currentState: string) => {
+  try {
+    const newState = currentState === "on" ? "off" : "on";
+    const response = await fetch("/controls", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        entity_id: entityId,
+        state: newState,
+      }),
+    });
+    const html = await response.text();
 
-window.updateControl = async (entityId: string, currentState: string) => {
-    try {
-        const newState = currentState === 'on' ? 'off' : 'on';
-        const response = await fetch('/controls', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                entity_id: entityId,
-                state: newState
-            })
-        });
-        const html = await response.text();
-        
-        // Update the controls section with new state
-        const controlsTarget = document.querySelector<HTMLElement>('[data-controls-target]');
-        if (controlsTarget) {
-            controlsTarget.innerHTML = html;
-        }
-    } catch (error) {
-        console.error('Failed to update control:', error);
+    // Update the controls section with new state
+    const controlsTarget = document.querySelector<HTMLElement>(
+      "[data-controls-target]",
+    );
+    if (controlsTarget) {
+      controlsTarget.innerHTML = html;
     }
-}
+  } catch (error) {
+    console.error("Failed to update control:", error);
+  }
+};
 
 async function injectControls(target: HTMLElement): Promise<void> {
-    try {
-        const response = await fetch('/controls');
-        const html = await response.text();
-        target.innerHTML = html;
-    } catch (error) {
-        console.error('Failed to load controls:', error);
-    }
+  try {
+    const response = await fetch("/controls");
+    const html = await response.text();
+    target.innerHTML = html;
+  } catch (error) {
+    console.error("Failed to load controls:", error);
+  }
 }
 
 function initializeStream(block: StreamBlock): void {
-    const context = block.dataset.stream;
-    const eventSource = new EventSource(`/stream/${context}`);
-    const content = block.querySelector('.content');
+  const context = block.dataset.stream;
+  const eventSource = new EventSource(`/stream/${context}`);
+  const content = block.querySelector(".content");
 
-    if (!content) return;
+  if (!content) return;
 
-    eventSource.onmessage = function(event: MessageEvent) {
-        block.querySelector('.animate-pulse')?.remove();
-        const lines = event.data.split('\n');
-        content.innerHTML += lines.map(line => `<span>${line}</span>`).join('<br>');
-    };
+  eventSource.onmessage = function (event: MessageEvent) {
+    block.querySelector(".animate-pulse")?.remove();
+    const lines = event.data.split("\n");
+    content.innerHTML += lines
+      .map(line => `<span>${line}</span>`)
+      .join("<br>");
+  };
 
-    eventSource.onerror = function() {
-        eventSource.close();
-    };
+  eventSource.onerror = function () {
+    eventSource.close();
+  };
 }
 
-document.querySelectorAll<StreamBlock>('[data-stream]').forEach(initializeStream);
+document
+  .querySelectorAll<StreamBlock>("[data-stream]")
+  .forEach(initializeStream);
 
-const controlsTarget = document.querySelector<HTMLElement>('[data-controls-target]');
+const controlsTarget = document.querySelector<HTMLElement>(
+  "[data-controls-target]",
+);
 if (controlsTarget) {
-    injectControls(controlsTarget);
+  injectControls(controlsTarget);
 }
