@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 http_client = httpx.AsyncClient(timeout=300)  # 5 minute timeout
 
+
 def remove_javascript(html_content):
     """Remove JavaScript blocks from HTML content"""
     soup = BeautifulSoup(html_content, "html.parser")
@@ -15,6 +16,7 @@ def remove_javascript(html_content):
 
     # Return the cleaned HTML
     return str(soup)
+
 
 async def fetch(url):
     """

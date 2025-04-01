@@ -7,9 +7,15 @@ import httpx
 TRAFFIC_CAMERAS = [
     # Sierra Nevada Mountains
     {
+        "name": "US-50 at Meyers",
+        "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atmeyers/hwy50atmeyers.jpg",
+        "description": "Meyers traffic circle",
+        "segment": "Sierra",
+    },
+    {
         "name": "US-50 at Echo Summit",
         "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atechosummit/hwy50atechosummit.jpg",
-        "description": "Echo Summit (7,382 ft) - First major pass leaving South Lake Tahoe",
+        "description": "Echo Summit (7,382 ft)",
         "segment": "Sierra",
     },
     {
@@ -28,7 +34,13 @@ TRAFFIC_CAMERAS = [
     {
         "name": "US-50 at Placerville",
         "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atbedford/hwy50atbedford.jpg",
-        "description": "Placerville - Last mountain town before reaching Sacramento Valley",
+        "description": "Placerville - Bedford intersection",
+        "segment": "Foothills",
+    },
+    {
+        "name": "US-50 at Spring",
+        "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atspring/hwy50atspring.jpg",
+        "description": "Placerville - Last traffic light",
         "segment": "Foothills",
     },
     # Sacramento Valley
@@ -39,12 +51,17 @@ TRAFFIC_CAMERAS = [
         "segment": "Valley",
     },
     {
+        "name": "US-50 : West Sacramento",
+        "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy50atjeffersonblvd1/hwy50atjeffersonblvd1.jpg",
+        "description": "Hwy 50 at Jefferson Blvd",
+        "segment": "Central Valley",
+    },
+    {
         "name": "I-80 at Davis",
         "url": "https://cwwp2.dot.ca.gov/data/d3/cctv/image/hwy80atchiles/hwy80atchiles.jpg",
         "description": "Davis - I-80 at Chiles Road, west of Sacramento",
-        "segment": "Valley",
+        "segment": "Central Valley",
     },
-    # Central Valley to Bay Area
     {
         "name": "I-80 at Vacaville",
         "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv998i80nuttreeroad/tv998i80nuttreeroad.jpg",
@@ -65,14 +82,62 @@ TRAFFIC_CAMERAS = [
         "segment": "Bay Area",
     },
     {
+        "name": "I-80 at Hercules",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvh37i80beforesycamoreavenue/tvh37i80beforesycamoreavenue.jpg",
+        "description": "Emeryville - I-80 before Syncamore Ave",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80 at San Pablo",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvh16i80elportal/tvh16i80elportal.jpg",
+        "description": "San Pablo - El Portal",
+        "segment": "Bay Area",
+    },
+    {
         "name": "I-80 at Emeryville",
         "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv516i80westofashbyavenue/tv516i80westofashbyavenue.jpg",
         "description": "Emeryville - I-80 west of Ashby Avenue, approaching the Bay Bridge",
         "segment": "Bay Area",
     },
     {
-        "name": "US 101 : After Bay Bridge",
+        "name": "I-880 at Emeryville",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv119i880i580i80/tv119i880i580i80.jpg",
+        "description": "Emeryville I-880 interchange before Bay Bride",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80 Oakland",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvd40i80beforetollplaza/tvd40i80beforetollplaza.jpg",
+        "description": "Bay Bridge toll plaza",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80 Bay Bridge",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvd33i80baybridgesastowerwest/tvd33i80baybridgesastowerwest.jpg",
+        "description": "Bay Bridge - Treasure Island",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80: San Francisco",
         "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg?1743361635041",
+        "description": "I-80: Fremont St. exit",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80: San Francisco",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg",
+        "description": "San Francisco, 6th Street",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-80: San Francisco",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv304i80us101/tv304i80us101.jpg",
+        "description": "US-101 merge",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "US-101 : After Bay Bridge",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvd01i80fremont/tvd01i80fremont.jpg",
         "description": "San Francisco, looking towards Bay Bridge",
         "segment": "Bay Area",
     },
@@ -80,6 +145,12 @@ TRAFFIC_CAMERAS = [
         "name": "US-101 : San Francisco",
         "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv312us101atcesarchavezbl/tv312us101atcesarchavezbl.jpg?1743361669105",
         "description": "South bound 101 at Ceasar Chavez before 280 exit",
+        "segment": "Bay Area",
+    },
+    {
+        "name": "I-280: San Francisco",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv319i280s280athavelockstpoc/tv319i280s280athavelockstpoc.jpg",
+        "description": "South 280 at Havelock St.",
         "segment": "Bay Area",
     },
 ]
