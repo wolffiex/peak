@@ -1,9 +1,8 @@
 from typing import AsyncGenerator, Any
 from .api import call_anthropic_api, stream_anthropic_api
-from .http import fetch_all
+from .http_client import fetch_all
 from .prompts import get_standard_system_prompt
 import asyncio
-from bs4 import BeautifulSoup
 
 # Events context prompts
 EVENTS_PREPROCESSING_PROMPT = """
@@ -67,8 +66,7 @@ def preprocess_events_data(intros, results):
     awaitables = []
     MAX_CHARS_PER_SOURCE = 50000  # Conservative limit per source
 
-    for intro, raw_data in zip(intros, results):
-        data = remove_javascript(raw_data)
+    for intro, data in zip(intros, results):
         # Truncate data if it's too long
         if len(data) > MAX_CHARS_PER_SOURCE:
             truncated_data = (
@@ -96,18 +94,6 @@ def preprocess_events_data(intros, results):
         awaitables.append(coroutine)
 
     return awaitables
-
-
-def remove_javascript(html_content):
-    """Remove JavaScript blocks from HTML content"""
-    soup = BeautifulSoup(html_content, "html.parser")
-
-    # Remove script tags
-    for script in soup.find_all("script"):
-        script.decompose()
-
-    # Return the cleaned HTML
-    return str(soup)
 
 
 async def gen_events() -> AsyncGenerator[Any, None]:
