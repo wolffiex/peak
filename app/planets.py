@@ -1,29 +1,15 @@
-from skyfield.api import load, Topos
 from skyfield.almanac import find_discrete, risings_and_settings, meridian_transits
 from skyfield.framelib import ecliptic_frame
 from datetime import datetime, timedelta, timezone
-import pytz
-
-# Load ephemeris and time scale
-eph = load("de421.bsp")  # You can use 'de440s.bsp' if you want more precision
-ts = load.timescale()
-
-# Define observer location
-latitude = 38.8864
-longitude = -119.9972
-location = Topos(latitude_degrees=latitude, longitude_degrees=longitude)
-
-# Define timezone for location (Pacific Time)
-local_timezone = pytz.timezone("America/Los_Angeles")
-observer = eph["earth"] + location
-
-# Define the planets of interest
-planets = {
-    "Mars": eph["mars"],
-    "Venus": eph["venus"],
-    "Saturn": eph["saturn barycenter"],
-    "Jupiter": eph["jupiter barycenter"],
-}
+from .constants import (
+    LOCAL_TIMEZONE as local_timezone,
+    TS as ts,
+    EPH as eph,
+    OBSERVER as observer,
+    LOCATION as location,
+    PLANETS as planets,
+    MOON
+)
 
 # Set the date range: from today to tomorrow (UTC)
 today = datetime.now(timezone.utc).date()
@@ -62,7 +48,6 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
 
     # If we found a rise time, find the next transit and set after that
     transit_time = None
-    transit_time_obj = None
     set_time = None
     altitude = None
 
@@ -71,7 +56,6 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
         for t in times_tr:
             try:
                 if t.tt >= rise_time_obj.tt:
-                    transit_time_obj = t
                     transit_time = t.utc_datetime().strftime("%Y-%m-%d %H:%M UTC")
                     alt, _, _ = observer.at(t).observe(planet_obj).apparent().altaz()
                     altitude = alt.degrees
@@ -153,7 +137,7 @@ def get_moon_phase_name(phase):
 
 # Function to get moon data
 def get_moon_data():
-    moon = eph["moon"]
+    # Using MOON from constants.py
 
     # Extend the time range to get more events
     extended_end = ts.utc((t1.utc_datetime() + timedelta(days=2)))
@@ -167,11 +151,11 @@ def get_moon_data():
     zenith_angle_deg = None
 
     # Get all rise/set times in the extended period
-    f_rise_set = risings_and_settings(eph, moon, location)
+    f_rise_set = risings_and_settings(eph, MOON, location)
     times_rs, events_rs = find_discrete(current_time, extended_end, f_rise_set)
 
     # Get all transit times in the extended period
-    f_transit = meridian_transits(eph, moon, location)
+    f_transit = meridian_transits(eph, MOON, location)
     times_tr, events_tr = find_discrete(current_time, extended_end, f_transit)
 
     # Find next rise event
@@ -192,7 +176,7 @@ def get_moon_data():
             try:
                 if t.tt >= rise_time_obj.tt:
                     transit_time = t.utc_datetime().strftime("%Y-%m-%d %H:%M UTC")
-                    alt, _, _ = observer.at(t).observe(moon).apparent().altaz()
+                    alt, _, _ = observer.at(t).observe(MOON).apparent().altaz()
                     zenith_angle_deg = alt.degrees
                     break
             except (TypeError, AttributeError):
@@ -211,16 +195,14 @@ def get_moon_data():
 
     # Get current altitude
     current_time = ts.now()
-    alt, az, distance = observer.at(current_time).observe(moon).apparent().altaz()
+    alt, az, distance = observer.at(current_time).observe(MOON).apparent().altaz()
     current_altitude = alt.degrees
 
     # Calculate moon phase
-    sun = eph["sun"]
-
     # Get positions of sun and moon as seen from Earth
     e = observer.at(current_time)
-    s = e.observe(sun).apparent()
-    m = e.observe(moon).apparent()
+    s = e.observe(eph["sun"]).apparent()
+    m = e.observe(MOON).apparent()
 
     # Calculate sun-earth-moon angle in ecliptic coordinates
     _, slon, _ = s.frame_latlon(ecliptic_frame)

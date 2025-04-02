@@ -6,13 +6,17 @@ import pytz
 import psycopg2
 from psycopg2 import sql
 from fastapi import APIRouter
-from skyfield.api import load, Topos
 from skyfield.almanac import find_discrete
+from .constants import (
+    LOCAL_TIMEZONE as LOCAL_TZ,
+    DATABASE_NAME,
+    DATABASE_USER,
+    TS,
+    OBSERVER,
+    SUN
+)
 
 router = APIRouter()
-
-# Define constant for local timezone
-LOCAL_TZ = pytz.timezone("America/Los_Angeles")
 
 
 def localize_time(time_obj):
@@ -112,8 +116,8 @@ def save_to_db(data):
     try:
         conn = psycopg2.connect(
             **{
-                "dbname": "monitoring",
-                "user": "adam",
+                "dbname": DATABASE_NAME,
+                "user": DATABASE_USER,
             }
         )
         cur = conn.cursor()
@@ -147,8 +151,8 @@ def get_recent_weather_stats(hours=24):
     try:
         conn = psycopg2.connect(
             **{
-                "dbname": "monitoring",
-                "user": "adam",
+                "dbname": DATABASE_NAME,
+                "user": DATABASE_USER,
             }
         )
         cur = conn.cursor()
@@ -234,28 +238,16 @@ def get_yesterday_summary():
     yesterday_start = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0))
     yesterday_end = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59))
     
-    # Define observer location (matching planets.py from South Lake Tahoe)
-    latitude = 38.8864
-    longitude = -119.9972
-    elevation = 1900  # meters, approximate for South Lake Tahoe
-    
-    # Load astronomical data
-    eph = load("/home/adam/code/peak/de421.bsp")
-    ts = load.timescale()
-    
-    # Create observer location
-    location = Topos(latitude_degrees=latitude, longitude_degrees=longitude, elevation_m=elevation)
-    earth = eph['earth']
-    sun = eph['sun']
-    observer = earth + location
+    # Use constants for astronomical calculations
+    # OBSERVER, SUN, and TS are imported from constants.py
     
     # Calculate sunrise and sunset for yesterday
-    t0 = ts.from_datetime(yesterday_start)
-    t1 = ts.from_datetime(yesterday_end)
+    t0 = TS.from_datetime(yesterday_start)
+    t1 = TS.from_datetime(yesterday_end)
     
     def sunrise_sunset(t):
         """Return 1 for sunrise, 0 for sunset"""
-        position = observer.at(t).observe(sun).apparent()
+        position = OBSERVER.at(t).observe(SUN).apparent()
         alt, az, distance = position.altaz()
         return alt.degrees > 0.0
     
@@ -278,8 +270,8 @@ def get_yesterday_summary():
     try:
         conn = psycopg2.connect(
             **{
-                "dbname": "monitoring",
-                "user": "adam",
+                "dbname": DATABASE_NAME,
+                "user": DATABASE_USER,
             }
         )
         cur = conn.cursor()
@@ -403,8 +395,8 @@ def get_weather_report():
     try:
         conn = psycopg2.connect(
             **{
-                "dbname": "monitoring",
-                "user": "adam",
+                "dbname": DATABASE_NAME,
+                "user": DATABASE_USER,
             }
         )
         cur = conn.cursor()
