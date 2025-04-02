@@ -123,6 +123,19 @@ def save_to_db(data):
     return success
 
 
+# Weather context prompts
+WEATHER_PROMPT = """
+Give a casual, friendly description of the weather right here in Meyers.
+Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor.
+For example: 'It's a chilly 38° here in Meyers right now with clear skies.'
+Blend in the weather station data naturally without listing statistics.
+Mention if it's particularly humid, if the barometer is rising/falling, or if there's barely any wind.
+After the current conditions, tell us what to expect today/tomorrow and through the week.
+Be enthusiastic about any exciting weather patterns coming - especially snow!
+End with a casual recommendation for outdoor activities given the forecast.
+"""
+
+
 def get_recent_weather_stats(hours=24):
     """Get recent weather statistics from the database"""
     try:
@@ -547,14 +560,15 @@ def install_routes(app, templates):
     app.include_router(router)
 
 
-async def main():
-    """Run the weather report and print results when script is run directly."""
+def get_summary():
+    """Get a formatted weather summary as a string."""
     report = get_weather_report()
     yesterday = get_yesterday_summary()
 
     if not report:
-        print("Failed to retrieve weather report")
-        return
+        return "Failed to retrieve weather report"
+
+    lines = []
 
     # Format current conditions
     current = report.get("current", {})
@@ -570,23 +584,23 @@ async def main():
             time_obj.strftime("%A, %B %d at %I:%M %p") if time_obj else "Unknown"
         )
 
-        print("\n=== CURRENT WEATHER CONDITIONS ===")
-        print(f"Last Updated: {time_formatted}")
-        print(f"Temperature: {current.get('outdoor_temp', 'N/A'):.1f}°F")
-        print(f"Humidity: {current.get('humidity', 'N/A'):.0f}%")
-        print(
+        lines.append("\n=== CURRENT WEATHER CONDITIONS ===")
+        lines.append(f"Last Updated: {time_formatted}")
+        lines.append(f"Temperature: {current.get('outdoor_temp', 'N/A'):.1f}°F")
+        lines.append(f"Humidity: {current.get('humidity', 'N/A'):.0f}%")
+        lines.append(
             f"Barometric Pressure: {current.get('pressure', 'N/A'):.2f} inHg ({report.get('barometer_trend', 'steady')})"
         )
-        print(f"Wind Speed: {current.get('wind_speed', 'N/A') or 'Calm'}")
-        print(f"UV Index: {current.get('uvi', 'N/A')}")
-        print(f"Rain Rate: {current.get('rain_rate', 'N/A') or 'None'}")
+        lines.append(f"Wind Speed: {current.get('wind_speed', 'N/A') or 'Calm'}")
+        lines.append(f"UV Index: {current.get('uvi', 'N/A')}")
+        lines.append(f"Rain Rate: {current.get('rain_rate', 'N/A') or 'None'}")
 
     # Yesterday's summary
     if yesterday:
         from datetime import datetime
 
-        print("\n=== YESTERDAY'S SUMMARY ===")
-        print(f"Date: {yesterday.get('date')}")
+        lines.append("\n=== YESTERDAY'S SUMMARY ===")
+        lines.append(f"Date: {yesterday.get('date')}")
 
         # Format high temperature and time
         high_temp = yesterday.get("high_temp")
@@ -595,9 +609,9 @@ async def main():
             time_formatted = (
                 high_temp_time.strftime("%I:%M %p") if high_temp_time else "Unknown"
             )
-            print(f"High Temperature: {high_temp:.1f}°F at {time_formatted}")
+            lines.append(f"High Temperature: {high_temp:.1f}°F at {time_formatted}")
         else:
-            print("High Temperature: No data available")
+            lines.append("High Temperature: No data available")
 
         # Format sunrise/sunset times
         sunrise = yesterday.get("sunrise")
@@ -611,15 +625,15 @@ async def main():
             sunrise_fmt = sunrise_local.strftime("%I:%M %p")
             sunset_fmt = sunset_local.strftime("%I:%M %p")
 
-            print(f"Sunrise: {sunrise_fmt}")
-            print(f"Sunset: {sunset_fmt}")
+            lines.append(f"Sunrise: {sunrise_fmt}")
+            lines.append(f"Sunset: {sunset_fmt}")
 
             if daylight_hours:
                 hours = int(daylight_hours)
                 minutes = int((daylight_hours - hours) * 60)
-                print(f"Daylight: {hours} hours, {minutes} minutes")
+                lines.append(f"Daylight: {hours} hours, {minutes} minutes")
         else:
-            print("Sunrise/Sunset: No data available")
+            lines.append("Sunrise/Sunset: No data available")
 
         # Format UV index during daylight
         avg_uvi = yesterday.get("avg_uvi")
@@ -637,23 +651,23 @@ async def main():
                 if max_uvi < 11
                 else "Extreme"
             )
-            print(
+            lines.append(
                 f"UV Index during daylight: Avg {avg_uvi:.1f}, Max {max_uvi:.1f} ({uvi_level})"
             )
 
         # Display total rainfall for yesterday
         total_rain = yesterday.get("total_rain", 0.0)
         if total_rain > 0:
-            print(f"Total Rainfall: {total_rain:.2f} inches")
+            lines.append(f"Total Rainfall: {total_rain:.2f} inches")
         else:
-            print("Total Rainfall: None")
+            lines.append("Total Rainfall: None")
 
         # Print UV index for every two hours from sunrise to sunset
         hourly_uv = yesterday.get("hourly_uv", [])
         if hourly_uv:
-            print("\n=== UV INDEX BY TIME PERIOD (YESTERDAY) ===")
-            print("Time Period           Average UV    Level")
-            print("--------------------------------------------")
+            lines.append("\n=== UV INDEX BY TIME PERIOD (YESTERDAY) ===")
+            lines.append("Time Period           Average UV    Level")
+            lines.append("--------------------------------------------")
             for period in hourly_uv:
                 start_time = period.get("start_time")
                 end_time = period.get("end_time")
@@ -682,16 +696,16 @@ async def main():
                     uvi_str = "N/A"
                     uvi_level = "N/A"
 
-                print(f"{time_period.ljust(22)} {uvi_str.ljust(12)} {uvi_level}")
+                lines.append(f"{time_period.ljust(22)} {uvi_str.ljust(12)} {uvi_level}")
         else:
-            print("UV Index: No data available")
+            lines.append("UV Index: No data available")
 
     # Format daily high/low temperatures
     daily_data = report.get("daily_data", [])
     if daily_data:
-        print("\n=== 7-DAY TEMPERATURE HISTORY ===")
-        print("Date            Min    Max    Avg    Humidity")
-        print("--------------------------------------------")
+        lines.append("\n=== 7-DAY TEMPERATURE HISTORY ===")
+        lines.append("Date            Min    Max    Avg    Humidity")
+        lines.append("--------------------------------------------")
         for day in daily_data:
             date_str = day.get("day", "N/A")
             min_temp = day.get("min_temp", "N/A")
@@ -712,13 +726,13 @@ async def main():
                 f"{humidity:.0f}%" if isinstance(humidity, (int, float)) else "N/A"
             )
 
-            print(
+            lines.append(
                 f"{date_str}    {min_temp_str.ljust(6)} {max_temp_str.ljust(6)} {avg_temp_str.ljust(6)} {humidity_str}"
             )
 
     # Format barometer trend
-    print("\n=== BAROMETER TREND (12 HOURS) ===")
-    print(f"Current Trend: {report.get('barometer_trend', 'steady').title()}")
+    lines.append("\n=== BAROMETER TREND (12 HOURS) ===")
+    lines.append(f"Current Trend: {report.get('barometer_trend', 'steady').title()}")
 
     barometer_data = report.get("barometer_data", [])
     if barometer_data:
@@ -733,14 +747,14 @@ async def main():
             else 0
         )
         change = last_pressure - first_pressure
-        print(f"Pressure Change: {change:.3f} inHg")
+        lines.append(f"Pressure Change: {change:.3f} inHg")
 
     # Format wind data
     wind_data = report.get("wind_data", [])
     if wind_data:
-        print("\n=== RECENT WIND CONDITIONS ===")
-        print("Time              Average    Maximum")
-        print("-------------------------------------")
+        lines.append("\n=== RECENT WIND CONDITIONS ===")
+        lines.append("Time              Average    Maximum")
+        lines.append("-------------------------------------")
         for hour in wind_data:
             from datetime import datetime
 
@@ -762,9 +776,20 @@ async def main():
                 f"{max_wind:.1f} mph" if isinstance(max_wind, (int, float)) else "Calm"
             )
 
-            print(f"{time_formatted.ljust(16)} {avg_wind_str.ljust(10)} {max_wind_str}")
+            lines.append(
+                f"{time_formatted.ljust(16)} {avg_wind_str.ljust(10)} {max_wind_str}"
+            )
 
-    print()
+    lines.append("")
+
+    # Join all lines into a single string
+    return "\n".join(lines)
+
+
+async def main():
+    """Run the weather report and print results when script is run directly."""
+    summary = get_summary()
+    print(summary)
 
 
 if __name__ == "__main__":
