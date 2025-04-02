@@ -209,6 +209,7 @@ def get_yesterday_summary():
     """Get a summary of yesterday's weather including:
     - High temperature and time it occurred
     - UV index from sunrise to sunset
+    - Total rainfall
     """
     # Get yesterday's date with timezone
     yesterday = datetime.now(LOCAL_TZ) - timedelta(days=1)
@@ -270,6 +271,19 @@ def get_yesterday_summary():
         avg_uvi = float(uv_row[0]) if uv_row and uv_row[0] else None
         max_uvi = float(uv_row[1]) if uv_row and uv_row[1] else None
         min_uvi = float(uv_row[2]) if uv_row and uv_row[2] else None
+
+        # Calculate total rainfall for yesterday
+        rain_query = """
+        SELECT 
+            SUM(rain_rate) / 4 as total_rain  -- Divide by 4 because readings are hourly rates taken every 15 minutes
+        FROM weather
+        WHERE time >= %s AND time <= %s AND rain_rate > 0;
+        """
+
+        cur.execute(rain_query, (yesterday_start, yesterday_end))
+        rain_row = cur.fetchone()
+
+        total_rain = float(rain_row[0]) if rain_row and rain_row[0] else 0.0
 
         # Get UV index data for every two hours during daylight
         hourly_uv = []
@@ -336,6 +350,7 @@ def get_yesterday_summary():
             "max_uvi": max_uvi,
             "min_uvi": min_uvi,
             "hourly_uv": hourly_uv,
+            "total_rain": total_rain,
         }
 
     except psycopg2.Error as e:
@@ -626,41 +641,48 @@ async def main():
                 f"UV Index during daylight: Avg {avg_uvi:.1f}, Max {max_uvi:.1f} ({uvi_level})"
             )
 
-            # Print UV index for every two hours from sunrise to sunset
-            hourly_uv = yesterday.get("hourly_uv", [])
-            if hourly_uv:
-                print("\n=== UV INDEX BY TIME PERIOD (YESTERDAY) ===")
-                print("Time Period           Average UV    Level")
-                print("--------------------------------------------")
-                for period in hourly_uv:
-                    start_time = period.get("start_time")
-                    end_time = period.get("end_time")
-                    avg_uvi = period.get("avg_uvi")
+        # Display total rainfall for yesterday
+        total_rain = yesterday.get("total_rain", 0.0)
+        if total_rain > 0:
+            print(f"Total Rainfall: {total_rain:.2f} inches")
+        else:
+            print("Total Rainfall: None")
 
-                    # Format times
-                    start_str = start_time.strftime("%I:%M %p")
-                    end_str = end_time.strftime("%I:%M %p")
-                    time_period = f"{start_str} - {end_str}"
+        # Print UV index for every two hours from sunrise to sunset
+        hourly_uv = yesterday.get("hourly_uv", [])
+        if hourly_uv:
+            print("\n=== UV INDEX BY TIME PERIOD (YESTERDAY) ===")
+            print("Time Period           Average UV    Level")
+            print("--------------------------------------------")
+            for period in hourly_uv:
+                start_time = period.get("start_time")
+                end_time = period.get("end_time")
+                avg_uvi = period.get("avg_uvi")
 
-                    # Determine UV level
-                    if avg_uvi is not None:
-                        uvi_level = (
-                            "Low"
-                            if avg_uvi < 3
-                            else "Moderate"
-                            if avg_uvi < 6
-                            else "High"
-                            if avg_uvi < 8
-                            else "Very High"
-                            if avg_uvi < 11
-                            else "Extreme"
-                        )
-                        uvi_str = f"{avg_uvi:.1f}"
-                    else:
-                        uvi_str = "N/A"
-                        uvi_level = "N/A"
+                # Format times
+                start_str = start_time.strftime("%I:%M %p")
+                end_str = end_time.strftime("%I:%M %p")
+                time_period = f"{start_str} - {end_str}"
 
-                    print(f"{time_period.ljust(22)} {uvi_str.ljust(12)} {uvi_level}")
+                # Determine UV level
+                if avg_uvi is not None:
+                    uvi_level = (
+                        "Low"
+                        if avg_uvi < 3
+                        else "Moderate"
+                        if avg_uvi < 6
+                        else "High"
+                        if avg_uvi < 8
+                        else "Very High"
+                        if avg_uvi < 11
+                        else "Extreme"
+                    )
+                    uvi_str = f"{avg_uvi:.1f}"
+                else:
+                    uvi_str = "N/A"
+                    uvi_level = "N/A"
+
+                print(f"{time_period.ljust(22)} {uvi_str.ljust(12)} {uvi_level}")
         else:
             print("UV Index: No data available")
 
