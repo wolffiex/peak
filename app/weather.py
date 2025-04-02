@@ -6,38 +6,15 @@ import pytz
 import psycopg2
 from psycopg2 import sql
 from fastapi import APIRouter
-from skyfield.almanac import find_discrete
-from .constants import (
+from .utils import (
     LOCAL_TIMEZONE as LOCAL_TZ,
     DATABASE_NAME,
     DATABASE_USER,
-    TS,
-    OBSERVER,
-    SUN
+    localize_time,
+    get_sunrise_sunset,
 )
 
 router = APIRouter()
-
-
-def localize_time(time_obj):
-    """
-    Convert a datetime object to local Pacific Time.
-    
-    Args:
-        time_obj: A datetime object, which may or may not have timezone information
-        
-    Returns:
-        A datetime object localized to Pacific Time
-    """
-    if time_obj is None:
-        return None
-        
-    if time_obj.tzinfo is not None:
-        # If datetime already has timezone info, convert to local timezone
-        return time_obj.astimezone(LOCAL_TZ)
-    else:
-        # If datetime is naive (no timezone), assume it's UTC and convert
-        return pytz.utc.localize(time_obj).astimezone(LOCAL_TZ)
 
 
 def scrape_weather_data():
@@ -235,37 +212,16 @@ def get_yesterday_summary():
     """
     # Get yesterday's date with timezone
     yesterday = datetime.now(LOCAL_TZ) - timedelta(days=1)
-    yesterday_start = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0))
-    yesterday_end = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59))
-    
-    # Use constants for astronomical calculations
-    # OBSERVER, SUN, and TS are imported from constants.py
-    
-    # Calculate sunrise and sunset for yesterday
-    t0 = TS.from_datetime(yesterday_start)
-    t1 = TS.from_datetime(yesterday_end)
-    
-    def sunrise_sunset(t):
-        """Return 1 for sunrise, 0 for sunset"""
-        position = OBSERVER.at(t).observe(SUN).apparent()
-        alt, az, distance = position.altaz()
-        return alt.degrees > 0.0
-    
-    # Add the step_days attribute required by find_discrete
-    sunrise_sunset.step_days = 0.01  # Check roughly every 15 minutes
-    
-    # Find sunrise and sunset times
-    times, events = find_discrete(t0, t1, sunrise_sunset)
-    
-    sunrise_time = None
-    sunset_time = None
-    
-    for time, event in zip(times, events):
-        if event == 1:  # Sunrise
-            sunrise_time = time.utc_datetime()
-        elif event == 0:  # Sunset
-            sunset_time = time.utc_datetime()
-    
+    yesterday_start = LOCAL_TZ.localize(
+        datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0)
+    )
+    yesterday_end = LOCAL_TZ.localize(
+        datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
+    )
+
+    # Calculate sunrise and sunset for yesterday using utility function
+    sunrise_time, sunset_time = get_sunrise_sunset(yesterday)
+
     # Query database for yesterday's weather data
     try:
         conn = psycopg2.connect(
@@ -275,7 +231,7 @@ def get_yesterday_summary():
             }
         )
         cur = conn.cursor()
-        
+
         # Find the high temperature and when it occurred
         high_temp_query = """
         SELECT outdoor_temp, time
@@ -284,17 +240,17 @@ def get_yesterday_summary():
         ORDER BY outdoor_temp DESC
         LIMIT 1;
         """
-        
+
         cur.execute(high_temp_query, (yesterday_start, yesterday_end))
         high_temp_row = cur.fetchone()
-        
+
         high_temp = None
         high_temp_time = None
-        
+
         if high_temp_row:
             high_temp = float(high_temp_row[0]) if high_temp_row[0] else None
             high_temp_time = high_temp_row[1] if high_temp_row[1] else None
-        
+
         # Get UV index data during daylight hours
         uv_query = """
         SELECT 
@@ -304,29 +260,29 @@ def get_yesterday_summary():
         FROM weather
         WHERE time >= %s AND time <= %s;
         """
-        
+
         daylight_start = sunrise_time if sunrise_time else yesterday_start
         daylight_end = sunset_time if sunset_time else yesterday_end
-        
+
         cur.execute(uv_query, (daylight_start, daylight_end))
         uv_row = cur.fetchone()
-        
+
         avg_uvi = float(uv_row[0]) if uv_row and uv_row[0] else None
         max_uvi = float(uv_row[1]) if uv_row and uv_row[1] else None
         min_uvi = float(uv_row[2]) if uv_row and uv_row[2] else None
-        
+
         # Get UV index data for every two hours during daylight
         hourly_uv = []
         if sunrise_time and sunset_time:
             # Create two-hour intervals between sunrise and sunset
             intervals = []
             current_time = sunrise_time
-            
+
             while current_time < sunset_time:
                 interval_end = min(current_time + timedelta(hours=2), sunset_time)
                 intervals.append((current_time, interval_end))
                 current_time = interval_end
-            
+
             # Query UV data for each interval
             for start, end in intervals:
                 interval_query = """
@@ -338,44 +294,50 @@ def get_yesterday_summary():
                 GROUP BY bucket
                 ORDER BY bucket;
                 """
-                
+
                 cur.execute(interval_query, (start, end))
-                
+
                 # Calculate average UV for this interval
                 readings = []
                 for row in cur.fetchall():
                     if row[1] is not None:  # Check if UVI reading exists
                         readings.append(float(row[1]))
-                
+
                 # Add to hourly data if we have readings
                 if readings:
-                    avg_uvi_interval = sum(readings) / len(readings) if readings else None
+                    avg_uvi_interval = (
+                        sum(readings) / len(readings) if readings else None
+                    )
                     max_uvi_interval = max(readings) if readings else None
-                    
+
                     # Convert to local time for display
                     start_local = localize_time(start)
                     end_local = localize_time(end)
-                    
-                    hourly_uv.append({
-                        "start_time": start_local,
-                        "end_time": end_local,
-                        "avg_uvi": avg_uvi_interval,
-                        "max_uvi": max_uvi_interval
-                    })
-        
+
+                    hourly_uv.append(
+                        {
+                            "start_time": start_local,
+                            "end_time": end_local,
+                            "avg_uvi": avg_uvi_interval,
+                            "max_uvi": max_uvi_interval,
+                        }
+                    )
+
         return {
             "date": yesterday.strftime("%Y-%m-%d"),
             "high_temp": high_temp,
             "high_temp_time": high_temp_time,
             "sunrise": sunrise_time,
             "sunset": sunset_time,
-            "daylight_hours": (sunset_time - sunrise_time).total_seconds() / 3600 if sunrise_time and sunset_time else None,
+            "daylight_hours": (sunset_time - sunrise_time).total_seconds() / 3600
+            if sunrise_time and sunset_time
+            else None,
             "avg_uvi": avg_uvi,
             "max_uvi": max_uvi,
             "min_uvi": min_uvi,
-            "hourly_uv": hourly_uv
+            "hourly_uv": hourly_uv,
         }
-        
+
     except psycopg2.Error as e:
         print(f"Database error in yesterday summary: {e}")
         return None
@@ -384,6 +346,7 @@ def get_yesterday_summary():
             cur.close()
         if conn:
             conn.close()
+
 
 def get_weather_report():
     """Get a comprehensive weather report including:
@@ -585,173 +548,236 @@ async def main():
     """Run the weather report and print results when script is run directly."""
     report = get_weather_report()
     yesterday = get_yesterday_summary()
-    
+
     if not report:
         print("Failed to retrieve weather report")
         return
-        
+
     # Format current conditions
-    current = report.get('current', {})
+    current = report.get("current", {})
     if current:
         from datetime import datetime
-        time_str = current.get('time')
+
+        time_str = current.get("time")
         time_obj = datetime.fromisoformat(time_str) if time_str else None
-        
+
         # Convert to local time zone (Pacific Time)
-        time_obj = localize_time(time_obj)                
-        time_formatted = time_obj.strftime("%A, %B %d at %I:%M %p") if time_obj else "Unknown"
-        
+        time_obj = localize_time(time_obj)
+        time_formatted = (
+            time_obj.strftime("%A, %B %d at %I:%M %p") if time_obj else "Unknown"
+        )
+
         print("\n=== CURRENT WEATHER CONDITIONS ===")
         print(f"Last Updated: {time_formatted}")
         print(f"Temperature: {current.get('outdoor_temp', 'N/A'):.1f}°F")
         print(f"Humidity: {current.get('humidity', 'N/A'):.0f}%")
-        print(f"Barometric Pressure: {current.get('pressure', 'N/A'):.2f} inHg ({report.get('barometer_trend', 'steady')})")
+        print(
+            f"Barometric Pressure: {current.get('pressure', 'N/A'):.2f} inHg ({report.get('barometer_trend', 'steady')})"
+        )
         print(f"Wind Speed: {current.get('wind_speed', 'N/A') or 'Calm'}")
         print(f"UV Index: {current.get('uvi', 'N/A')}")
         print(f"Rain Rate: {current.get('rain_rate', 'N/A') or 'None'}")
-    
+
     # Yesterday's summary
     if yesterday:
         from datetime import datetime
-        
+
         print("\n=== YESTERDAY'S SUMMARY ===")
         print(f"Date: {yesterday.get('date')}")
-        
+
         # Format high temperature and time
-        high_temp = yesterday.get('high_temp')
-        high_temp_time = yesterday.get('high_temp_time')
+        high_temp = yesterday.get("high_temp")
+        high_temp_time = yesterday.get("high_temp_time")
         if high_temp is not None and high_temp_time is not None:
-            time_formatted = high_temp_time.strftime("%I:%M %p") if high_temp_time else "Unknown"
+            time_formatted = (
+                high_temp_time.strftime("%I:%M %p") if high_temp_time else "Unknown"
+            )
             print(f"High Temperature: {high_temp:.1f}°F at {time_formatted}")
         else:
             print("High Temperature: No data available")
-        
+
         # Format sunrise/sunset times
-        sunrise = yesterday.get('sunrise')
-        sunset = yesterday.get('sunset')
-        daylight_hours = yesterday.get('daylight_hours')
-        
+        sunrise = yesterday.get("sunrise")
+        sunset = yesterday.get("sunset")
+        daylight_hours = yesterday.get("daylight_hours")
+
         if sunrise and sunset:
             sunrise_local = localize_time(sunrise)
             sunset_local = localize_time(sunset)
-            
+
             sunrise_fmt = sunrise_local.strftime("%I:%M %p")
             sunset_fmt = sunset_local.strftime("%I:%M %p")
-            
+
             print(f"Sunrise: {sunrise_fmt}")
             print(f"Sunset: {sunset_fmt}")
-            
+
             if daylight_hours:
                 hours = int(daylight_hours)
                 minutes = int((daylight_hours - hours) * 60)
                 print(f"Daylight: {hours} hours, {minutes} minutes")
         else:
             print("Sunrise/Sunset: No data available")
-        
+
         # Format UV index during daylight
-        avg_uvi = yesterday.get('avg_uvi')
-        max_uvi = yesterday.get('max_uvi')
-        
+        avg_uvi = yesterday.get("avg_uvi")
+        max_uvi = yesterday.get("max_uvi")
+
         if avg_uvi is not None and max_uvi is not None:
-            uvi_level = "Low" if max_uvi < 3 else "Moderate" if max_uvi < 6 else "High" if max_uvi < 8 else "Very High" if max_uvi < 11 else "Extreme"
-            print(f"UV Index during daylight: Avg {avg_uvi:.1f}, Max {max_uvi:.1f} ({uvi_level})")
-            
+            uvi_level = (
+                "Low"
+                if max_uvi < 3
+                else "Moderate"
+                if max_uvi < 6
+                else "High"
+                if max_uvi < 8
+                else "Very High"
+                if max_uvi < 11
+                else "Extreme"
+            )
+            print(
+                f"UV Index during daylight: Avg {avg_uvi:.1f}, Max {max_uvi:.1f} ({uvi_level})"
+            )
+
             # Print UV index for every two hours from sunrise to sunset
-            hourly_uv = yesterday.get('hourly_uv', [])
+            hourly_uv = yesterday.get("hourly_uv", [])
             if hourly_uv:
                 print("\n=== UV INDEX BY TIME PERIOD (YESTERDAY) ===")
                 print("Time Period           Average UV    Level")
                 print("--------------------------------------------")
                 for period in hourly_uv:
-                    start_time = period.get('start_time')
-                    end_time = period.get('end_time')
-                    avg_uvi = period.get('avg_uvi')
-                    
+                    start_time = period.get("start_time")
+                    end_time = period.get("end_time")
+                    avg_uvi = period.get("avg_uvi")
+
                     # Format times
                     start_str = start_time.strftime("%I:%M %p")
                     end_str = end_time.strftime("%I:%M %p")
                     time_period = f"{start_str} - {end_str}"
-                    
+
                     # Determine UV level
                     if avg_uvi is not None:
-                        uvi_level = "Low" if avg_uvi < 3 else "Moderate" if avg_uvi < 6 else "High" if avg_uvi < 8 else "Very High" if avg_uvi < 11 else "Extreme"
+                        uvi_level = (
+                            "Low"
+                            if avg_uvi < 3
+                            else "Moderate"
+                            if avg_uvi < 6
+                            else "High"
+                            if avg_uvi < 8
+                            else "Very High"
+                            if avg_uvi < 11
+                            else "Extreme"
+                        )
                         uvi_str = f"{avg_uvi:.1f}"
                     else:
                         uvi_str = "N/A"
                         uvi_level = "N/A"
-                    
+
                     print(f"{time_period.ljust(22)} {uvi_str.ljust(12)} {uvi_level}")
         else:
             print("UV Index: No data available")
-    
+
     # Format daily high/low temperatures
-    daily_data = report.get('daily_data', [])
+    daily_data = report.get("daily_data", [])
     if daily_data:
         print("\n=== 7-DAY TEMPERATURE HISTORY ===")
         print("Date            Min    Max    Avg    Humidity")
         print("--------------------------------------------")
         for day in daily_data:
-            date_str = day.get('day', 'N/A')
-            min_temp = day.get('min_temp', 'N/A')
-            max_temp = day.get('max_temp', 'N/A')
-            avg_temp = day.get('avg_temp', 'N/A')
-            humidity = day.get('avg_humidity', 'N/A')
-            
-            min_temp_str = f"{min_temp:.1f}°F" if isinstance(min_temp, (int, float)) else "N/A"
-            max_temp_str = f"{max_temp:.1f}°F" if isinstance(max_temp, (int, float)) else "N/A"
-            avg_temp_str = f"{avg_temp:.1f}°F" if isinstance(avg_temp, (int, float)) else "N/A"
-            humidity_str = f"{humidity:.0f}%" if isinstance(humidity, (int, float)) else "N/A"
-            
-            print(f"{date_str}    {min_temp_str.ljust(6)} {max_temp_str.ljust(6)} {avg_temp_str.ljust(6)} {humidity_str}")
-    
+            date_str = day.get("day", "N/A")
+            min_temp = day.get("min_temp", "N/A")
+            max_temp = day.get("max_temp", "N/A")
+            avg_temp = day.get("avg_temp", "N/A")
+            humidity = day.get("avg_humidity", "N/A")
+
+            min_temp_str = (
+                f"{min_temp:.1f}°F" if isinstance(min_temp, (int, float)) else "N/A"
+            )
+            max_temp_str = (
+                f"{max_temp:.1f}°F" if isinstance(max_temp, (int, float)) else "N/A"
+            )
+            avg_temp_str = (
+                f"{avg_temp:.1f}°F" if isinstance(avg_temp, (int, float)) else "N/A"
+            )
+            humidity_str = (
+                f"{humidity:.0f}%" if isinstance(humidity, (int, float)) else "N/A"
+            )
+
+            print(
+                f"{date_str}    {min_temp_str.ljust(6)} {max_temp_str.ljust(6)} {avg_temp_str.ljust(6)} {humidity_str}"
+            )
+
     # Format barometer trend
     print("\n=== BAROMETER TREND (12 HOURS) ===")
     print(f"Current Trend: {report.get('barometer_trend', 'steady').title()}")
-    
-    barometer_data = report.get('barometer_data', [])
+
+    barometer_data = report.get("barometer_data", [])
     if barometer_data:
-        first_pressure = barometer_data[0].get('avg_pressure') if barometer_data[0].get('avg_pressure') else 0
-        last_pressure = barometer_data[-1].get('avg_pressure') if barometer_data[-1].get('avg_pressure') else 0
+        first_pressure = (
+            barometer_data[0].get("avg_pressure")
+            if barometer_data[0].get("avg_pressure")
+            else 0
+        )
+        last_pressure = (
+            barometer_data[-1].get("avg_pressure")
+            if barometer_data[-1].get("avg_pressure")
+            else 0
+        )
         change = last_pressure - first_pressure
         print(f"Pressure Change: {change:.3f} inHg")
-    
+
     # Format wind data
-    wind_data = report.get('wind_data', [])
+    wind_data = report.get("wind_data", [])
     if wind_data:
         print("\n=== RECENT WIND CONDITIONS ===")
         print("Time              Average    Maximum")
         print("-------------------------------------")
         for hour in wind_data:
             from datetime import datetime
-            time_str = hour.get('hour')
+
+            time_str = hour.get("hour")
             time_obj = datetime.fromisoformat(time_str) if time_str else None
-            
+
             # Convert to local time zone (Pacific Time)
             time_obj = localize_time(time_obj)
-                    
+
             time_formatted = time_obj.strftime("%I:%M %p") if time_obj else "Unknown"
-            
-            avg_wind = hour.get('avg_wind')
-            max_wind = hour.get('max_wind')
-            
-            avg_wind_str = f"{avg_wind:.1f} mph" if isinstance(avg_wind, (int, float)) else "Calm"
-            max_wind_str = f"{max_wind:.1f} mph" if isinstance(max_wind, (int, float)) else "Calm"
-            
+
+            avg_wind = hour.get("avg_wind")
+            max_wind = hour.get("max_wind")
+
+            avg_wind_str = (
+                f"{avg_wind:.1f} mph" if isinstance(avg_wind, (int, float)) else "Calm"
+            )
+            max_wind_str = (
+                f"{max_wind:.1f} mph" if isinstance(max_wind, (int, float)) else "Calm"
+            )
+
             print(f"{time_formatted.ljust(16)} {avg_wind_str.ljust(10)} {max_wind_str}")
-    
+
     # UV index
     print("\n=== UV INDEX ===")
-    max_uvi = report.get('max_uvi')
+    max_uvi = report.get("max_uvi")
     if max_uvi is not None:
-        uvi_level = "Low" if max_uvi < 3 else "Moderate" if max_uvi < 6 else "High" if max_uvi < 8 else "Very High" if max_uvi < 11 else "Extreme"
+        uvi_level = (
+            "Low"
+            if max_uvi < 3
+            else "Moderate"
+            if max_uvi < 6
+            else "High"
+            if max_uvi < 8
+            else "Very High"
+            if max_uvi < 11
+            else "Extreme"
+        )
         print(f"Maximum UV Index (24h): {max_uvi:.1f} ({uvi_level})")
     else:
         print("UV Index data not available")
-    
+
     print()
 
 
 if __name__ == "__main__":
     # Run the main function when script is executed directly
     import asyncio
+
     asyncio.run(main())

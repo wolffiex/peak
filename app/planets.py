@@ -1,14 +1,15 @@
 from skyfield.almanac import find_discrete, risings_and_settings, meridian_transits
 from skyfield.framelib import ecliptic_frame
 from datetime import datetime, timedelta, timezone
-from .constants import (
+from .utils import (
     LOCAL_TIMEZONE as local_timezone,
     TS as ts,
     EPH as eph,
     OBSERVER as observer,
     LOCATION as location,
     PLANETS as planets,
-    MOON
+    MOON,
+    format_local_time,
 )
 
 # Set the date range: from today to tomorrow (UTC)
@@ -86,32 +87,6 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
         "current_altitude": current_altitude,
         "is_visible": current_altitude > 0,
     }
-
-
-# Helper function to format time in local timezone
-def format_local_time(utc_time_str, tz, visible=True):
-    if not utc_time_str or "No" in utc_time_str or not visible:
-        return "Not visible today"
-
-    # Parse UTC time string
-    utc_time = datetime.strptime(utc_time_str, "%Y-%m-%d %H:%M UTC")
-    utc_time = utc_time.replace(tzinfo=timezone.utc)
-
-    # Convert to local time
-    local_time = utc_time.astimezone(tz)
-
-    # Get today and tomorrow dates in the local timezone
-    today_local = datetime.now(tz).date()
-    tomorrow_local = today_local + timedelta(days=1)
-
-    # Format time with "today" or "tomorrow" prefix
-    time_str = local_time.strftime("%I:%M %p").lstrip("0")
-    if local_time.date() == today_local:
-        return f"Today at {time_str}"
-    elif local_time.date() == tomorrow_local:
-        return f"Tomorrow at {time_str}"
-    else:
-        return f"{local_time.strftime('%A')} at {time_str}"
 
 
 # Helper function to get moon phase name
