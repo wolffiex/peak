@@ -430,17 +430,6 @@ def get_weather_report():
             elif first - last > 0.02:
                 barometer_trend = "falling"
 
-        # UV index high in last 24 hours
-        query = """
-        SELECT max(uvi) as max_uvi
-        FROM weather 
-        WHERE time > NOW() - INTERVAL '24 hours';
-        """
-
-        cur.execute(query)
-        row = cur.fetchone()
-        max_uvi = float(row[0]) if row and row[0] else None
-
         # Wind for each of the last 3 hours
         query = """
         SELECT 
@@ -497,7 +486,6 @@ def get_weather_report():
             "daily_data": daily_data,
             "barometer_data": barometer_data,
             "barometer_trend": barometer_trend,
-            "max_uvi": max_uvi,
             "wind_data": wind_data,
             "current": current,
         }
@@ -753,25 +741,6 @@ async def main():
             )
 
             print(f"{time_formatted.ljust(16)} {avg_wind_str.ljust(10)} {max_wind_str}")
-
-    # UV index
-    print("\n=== UV INDEX ===")
-    max_uvi = report.get("max_uvi")
-    if max_uvi is not None:
-        uvi_level = (
-            "Low"
-            if max_uvi < 3
-            else "Moderate"
-            if max_uvi < 6
-            else "High"
-            if max_uvi < 8
-            else "Very High"
-            if max_uvi < 11
-            else "Extreme"
-        )
-        print(f"Maximum UV Index (24h): {max_uvi:.1f} ({uvi_level})")
-    else:
-        print("UV Index data not available")
 
     print()
 
