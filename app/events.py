@@ -134,3 +134,15 @@ async def gen_events() -> AsyncGenerator[Any, None]:
         temperature=0,
     ):
         yield chunk
+
+
+async def main():
+    """Run the events generator and print results when script is run directly."""
+    async for text_chunk in gen_events():
+        print(text_chunk, end="", flush=True)
+    print()
+
+
+if __name__ == "__main__":
+    # Run the main function when script is executed directly
+    asyncio.run(main())
