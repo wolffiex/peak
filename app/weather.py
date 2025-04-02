@@ -1,16 +1,39 @@
 # Weather data scraper and database integration
 import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import psycopg2
 from psycopg2 import sql
 from fastapi import APIRouter
 from skyfield.api import load, Topos
 from skyfield.almanac import find_discrete
-from datetime import timedelta
 
 router = APIRouter()
+
+# Define constant for local timezone
+LOCAL_TZ = pytz.timezone("America/Los_Angeles")
+
+
+def localize_time(time_obj):
+    """
+    Convert a datetime object to local Pacific Time.
+    
+    Args:
+        time_obj: A datetime object, which may or may not have timezone information
+        
+    Returns:
+        A datetime object localized to Pacific Time
+    """
+    if time_obj is None:
+        return None
+        
+    if time_obj.tzinfo is not None:
+        # If datetime already has timezone info, convert to local timezone
+        return time_obj.astimezone(LOCAL_TZ)
+    else:
+        # If datetime is naive (no timezone), assume it's UTC and convert
+        return pytz.utc.localize(time_obj).astimezone(LOCAL_TZ)
 
 
 def scrape_weather_data():
@@ -206,13 +229,10 @@ def get_yesterday_summary():
     - High temperature and time it occurred
     - UV index from sunrise to sunset
     """
-    # Define timezone
-    local_tz = pytz.timezone("America/Los_Angeles")
-    
     # Get yesterday's date with timezone
-    yesterday = datetime.now(local_tz) - timedelta(days=1)
-    yesterday_start = local_tz.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0))
-    yesterday_end = local_tz.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59))
+    yesterday = datetime.now(LOCAL_TZ) - timedelta(days=1)
+    yesterday_start = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 0, 0, 0))
+    yesterday_end = LOCAL_TZ.localize(datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59))
     
     # Define observer location (matching planets.py from South Lake Tahoe)
     latitude = 38.8864
@@ -341,8 +361,8 @@ def get_yesterday_summary():
                     max_uvi_interval = max(readings) if readings else None
                     
                     # Convert to local time for display
-                    start_local = start.astimezone(pytz.timezone("America/Los_Angeles"))
-                    end_local = end.astimezone(pytz.timezone("America/Los_Angeles"))
+                    start_local = localize_time(start)
+                    end_local = localize_time(end)
                     
                     hourly_uv.append({
                         "start_time": start_local,
@@ -586,14 +606,7 @@ async def main():
         time_obj = datetime.fromisoformat(time_str) if time_str else None
         
         # Convert to local time zone (Pacific Time)
-        if time_obj:
-            local_tz = pytz.timezone("America/Los_Angeles")
-            if time_obj.tzinfo is not None:
-                time_obj = time_obj.astimezone(local_tz)
-            else:
-                # If time is naive, assume it's in UTC and convert
-                time_obj = pytz.utc.localize(time_obj).astimezone(local_tz)
-                
+        time_obj = localize_time(time_obj)                
         time_formatted = time_obj.strftime("%A, %B %d at %I:%M %p") if time_obj else "Unknown"
         
         print("\n=== CURRENT WEATHER CONDITIONS ===")
@@ -627,8 +640,8 @@ async def main():
         daylight_hours = yesterday.get('daylight_hours')
         
         if sunrise and sunset:
-            sunrise_local = sunrise.astimezone(pytz.timezone("America/Los_Angeles"))
-            sunset_local = sunset.astimezone(pytz.timezone("America/Los_Angeles"))
+            sunrise_local = localize_time(sunrise)
+            sunset_local = localize_time(sunset)
             
             sunrise_fmt = sunrise_local.strftime("%I:%M %p")
             sunset_fmt = sunset_local.strftime("%I:%M %p")
@@ -722,13 +735,7 @@ async def main():
             time_obj = datetime.fromisoformat(time_str) if time_str else None
             
             # Convert to local time zone (Pacific Time)
-            if time_obj:
-                local_tz = pytz.timezone("America/Los_Angeles")
-                if time_obj.tzinfo is not None:
-                    time_obj = time_obj.astimezone(local_tz)
-                else:
-                    # If time is naive, assume it's in UTC and convert
-                    time_obj = pytz.utc.localize(time_obj).astimezone(local_tz)
+            time_obj = localize_time(time_obj)
                     
             time_formatted = time_obj.strftime("%I:%M %p") if time_obj else "Unknown"
             
