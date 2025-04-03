@@ -131,7 +131,7 @@ async def gen_events() -> AsyncGenerator[Any, None]:
         messages=messages,
         system=get_standard_system_prompt(),
         max_tokens=1024,
-        temperature=0,
+        temperature=0.0,
     ):
         yield chunk
 

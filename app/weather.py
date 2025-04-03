@@ -13,6 +13,9 @@ from .utils import (
     localize_time,
     get_sunrise_sunset,
 )
+from .http_client import fetch
+from .api import stream_anthropic_api
+from .prompts import get_standard_system_prompt
 
 router = APIRouter()
 
@@ -121,19 +124,6 @@ def save_to_db(data):
             conn.close()
 
     return success
-
-
-# Weather context prompts
-WEATHER_PROMPT = """
-Give a casual, friendly description of the weather right here in Meyers.
-Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor.
-For example: 'It's a chilly 38° here in Meyers right now with clear skies.'
-Blend in the weather station data naturally without listing statistics.
-Mention if it's particularly humid, if the barometer is rising/falling, or if there's barely any wind.
-After the current conditions, tell us what to expect today/tomorrow and through the week.
-Be enthusiastic about any exciting weather patterns coming - especially snow!
-End with a casual recommendation for outdoor activities given the forecast.
-"""
 
 
 def get_recent_weather_stats(hours=24):
@@ -560,7 +550,7 @@ def install_routes(app, templates):
     app.include_router(router)
 
 
-def get_summary():
+def get_report():
     """Get a formatted weather summary as a string."""
     report = get_weather_report()
     yesterday = get_yesterday_summary()
@@ -786,10 +776,61 @@ def get_summary():
     return "\n".join(lines)
 
 
+# Weather context prompts
+WEATHER_PROMPT = f"""
+Give a casual, friendly description of the weather right here in Meyers.
+Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor.
+For example: 'It's a chilly 38° here in Meyers right now with clear skies. Yesterday was a warm with highs in the 60s.'
+Blend in the following weather station data naturally without listing statistics.
+{{report}}
+After a summary of the weather yesterday and the current conditions, tell us what to expect today/tomorrow and through the week.
+Be enthusiastic about any exciting weather patterns coming - especially snow!
+End with a casual recommendation for outdoor activities given the forecast.
+"""
+
+
+async def gen_summary(report):
+    """
+    Generate a weather forecast summary by fetching data from NOAA and using the API to sample a model.
+
+    Returns:
+        A string containing the generated forecast summary
+    """
+
+    # Fetch the NOAA forecast data
+    noaa_url = "https://forecast.weather.gov/MapClick.php?lat=38.8569&lon=-120.0126"
+    forecast_data = await fetch(noaa_url)
+
+    # Call the API to generate the summary
+    messages = [
+        {
+            "role": "user",
+            "content": "Here's the current weather forecast for Meyers, near South Lake Tahoe:",
+        },
+        {"role": "user", "content": forecast_data},
+        {"role": "user", "content": WEATHER_PROMPT.format(report=report)},
+    ]
+
+    print(get_standard_system_prompt())
+    print(WEATHER_PROMPT.format(report=report))
+    async for chunk in stream_anthropic_api(
+        model="claude-3-7-sonnet-latest",
+        system=get_standard_system_prompt(),
+        messages=messages,
+        max_tokens=800,
+        temperature=0.2,
+    ):
+        yield chunk
+
+
 async def main():
     """Run the weather report and print results when script is run directly."""
-    summary = get_summary()
-    print(summary)
+    report = get_report()
+    print(report)
+    print()
+    async for text_chunk in gen_summary(report):
+        print(text_chunk, end="", flush=True)
+    print()
 
 
 if __name__ == "__main__":

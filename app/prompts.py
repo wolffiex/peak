@@ -1,21 +1,9 @@
 from datetime import datetime
-from typing import List
+# from typing import List
 
 """
 Prompt templates for the Peak application.
 This module contains all the prompts used across different contexts.
-"""
-
-# Weather context prompts
-WEATHER_PROMPT = """
-Give a casual, friendly description of the weather right here in Meyers.
-Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor.
-For example: 'It's a chilly 38° here in Meyers right now with clear skies.'
-Blend in the weather station data naturally without listing statistics.
-Mention if it's particularly humid, if the barometer is rising/falling, or if there's barely any wind.
-After the current conditions, tell us what to expect today/tomorrow and through the week.
-Be enthusiastic about any exciting weather patterns coming - especially snow!
-End with a casual recommendation for outdoor activities given the forecast.
 """
 
 KIRKWOOD_WEATHER_PROMPT = """
@@ -169,7 +157,7 @@ def get_contexts():
         # Weather context for the home page
         "weather": {
             "sources": get_weather_sources(),
-            "final_prompt": WEATHER_PROMPT.strip(),
+            "final_prompt": weather.WEATHER_PROMPT.strip(),
         },
         # Weather context for the Kirkwood page
         "kirkwood_weather": {
@@ -179,9 +167,9 @@ def get_contexts():
         "roads": {"sources": get_roads_sources(), "final_prompt": ROADS_PROMPT.strip()},
         "events": {
             "name": "events",  # Used to identify this context for special processing
-            "sources": get_events_sources(),
-            "preprocessing_prompt": EVENTS_PREPROCESSING_PROMPT.strip(),
-            "final_prompt": EVENTS_FINAL_PROMPT.strip(),
+            "sources": events.get_sources(),
+            "preprocessing_prompt": events.EVENTS_PREPROCESSING_PROMPT.strip(),
+            "final_prompt": events.EVENTS_FINAL_PROMPT.strip(),
         },
         "backcountry": {
             "sources": get_backcountry_sources(),

@@ -8,7 +8,7 @@ client = AsyncAnthropic()
 
 
 async def call_anthropic_api(
-    model, messages, system=None, max_tokens=1024, temperature=0
+    model, messages, system=None, max_tokens=1024, temperature=0.0
 ):
     """
     Centralized function for non-streaming Anthropic API calls with concurrency control.
@@ -44,7 +44,7 @@ async def call_anthropic_api(
 
 
 async def stream_anthropic_api(
-    model, messages, system=None, max_tokens=1024, temperature=0
+    model, messages, system=None, max_tokens=1024, temperature=0.0
 ):
     """
     Streaming version of Anthropic API calls with concurrency control.

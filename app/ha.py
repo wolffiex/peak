@@ -2,7 +2,8 @@ import os
 import asyncio
 from fastapi import Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+
+# from fastapi.templating import Jinja2Templates
 import httpx
 
 HA_HOST = os.environ["HA_HOST"]

@@ -33,7 +33,7 @@ async def root(request: Request):
 @app.get("/kirkwood", response_class=HTMLResponse)
 async def kirkwood(request: Request):
     return templates.TemplateResponse(
-        "kirkwood.html", {"request": request, "contexts_data": CONTEXT}
+        "kirkwood.html", {"request": request, "contexts_data": get_contexts()}
     )
 
 
@@ -42,7 +42,10 @@ async def analyze_section(context, custom_app=None):
 
     # Standard processing path - fetch all sources
     results = await asyncio.gather(
-        *[fetch(source["url"], custom_app) for source in context["sources"]]
+        *[
+            app.http_client.fetch(source["url"], custom_app)
+            for source in context["sources"]
+        ]
     )
 
     # Special handling for events context - use pre-processing with a smaller model
@@ -51,7 +54,11 @@ async def analyze_section(context, custom_app=None):
 
         try:
             # First, extract a raw list of events using a smaller model
-            raw_events_list = await preprocess_events_data(context["sources"], results)
+            from app.events import preprocess_events_data
+
+            raw_events_list = await preprocess_events_data(
+                [source["intro"] for source in context["sources"]], results
+            )
 
             # Then pass this condensed list to the main model
             messages = [
@@ -101,7 +108,11 @@ async def analyze_section(context, custom_app=None):
 
     # Use standard system prompt for most contexts
     current_time_str = datetime.now().strftime("%A, %B %d at %I:%M %p Pacific")
-    system_prompt = get_standard_system_prompt(current_time_str)
+    from app.prompts import get_standard_system_prompt
+
+    system_prompt = get_standard_system_prompt()
+
+    from app.api import call_anthropic_api
 
     message = await call_anthropic_api(
         model="claude-3-opus-20240229",
@@ -116,7 +127,10 @@ async def analyze_section(context, custom_app=None):
 
 @app.get("/stream/{context_id}")
 async def stream(request: Request, context_id: str):
-    context = CONTEXT[context_id]
+    from app.prompts import get_contexts
+
+    contexts = get_contexts()
+    context = contexts[context_id]
     print(f"\nStarting stream for {context_id}...")
 
     async def event_generator():

@@ -119,7 +119,7 @@ TRAFFIC_CAMERAS = [
     },
     {
         "name": "I-80: San Francisco",
-        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tv316i806thstreet/tv316i806thstreet.jpg?1743361635041",
+        "url": "https://cwwp2.dot.ca.gov/data/d4/cctv/image/tvd01i80fremont/tvd01i80fremont.jpg",
         "description": "I-80: Fremont St. exit",
         "segment": "Bay Area",
     },
