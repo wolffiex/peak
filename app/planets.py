@@ -369,26 +369,27 @@ async def gen_summary():
 
 def install_routes(app, templates):
     """Install routes to the FastAPI app"""
+    import markdown
     from fastapi import Request
-    from sse_starlette.sse import EventSourceResponse
-    import asyncio
+    from fastapi.responses import HTMLResponse
     import traceback
 
-    @app.get("/stream/planets")
-    async def stream_planets(request: Request):
-        print("\nStarting stream for planets...")
+    @app.get("/planets")
+    async def get_planets_html(request: Request):
+        """Get planets info as HTML"""
+        try:
+            # Get the summary as markdown
+            planets_md = await get_planet_summary()
 
-        async def event_generator():
-            try:
-                async for chunk in gen_summary():
-                    yield {"data": chunk}
-                    await asyncio.sleep(0.05)
-            except Exception as e:
-                print(f"\nError in stream planets:")
-                traceback.print_exc()
-                yield {"data": f"\nError: {str(e)}\n{traceback.format_exc()}"}
+            # Convert markdown to HTML
+            planets_html = markdown.markdown(planets_md, extensions=["extra"])
 
-        return EventSourceResponse(event_generator())
+            # Return the HTML directly
+            return HTMLResponse(planets_html)
+        except Exception as e:
+            print(f"Error generating planets HTML: {e}")
+            traceback.print_exc()
+            return HTMLResponse(f"<p>Error loading planet data: {str(e)}</p>")
 
 
 async def main():

@@ -14,7 +14,7 @@ from .utils import (
     get_sunrise_sunset,
 )
 from .http_client import fetch
-from .api import stream_anthropic_api
+from .api import stream_anthropic_api, call_anthropic_api
 from .prompts import get_standard_system_prompt
 from .cache import cached
 
@@ -550,28 +550,30 @@ def install_routes(app, templates):
     _templates = templates
     app.include_router(router)
 
-    # Add custom route for streaming weather data
+    import markdown
     from fastapi import Request
-    from sse_starlette.sse import EventSourceResponse
-    import asyncio
+    from fastapi.responses import HTMLResponse
     import traceback
 
-    @app.get("/stream/weather")
-    async def stream_weather(request: Request):
-        print("\nStarting stream for weather...")
+    @app.get("/weather")
+    async def get_weather_html(request: Request):
+        """Get weather info as HTML"""
+        try:
+            # Get the weather report
+            report = get_report()
 
-        async def event_generator():
-            try:
-                report = get_report()
-                async for chunk in gen_summary(report):
-                    yield {"data": chunk}
-                    await asyncio.sleep(0.05)
-            except Exception as e:
-                print(f"\nError in stream weather:")
-                traceback.print_exc()
-                yield {"data": f"\nError: {str(e)}\n{traceback.format_exc()}"}
+            # Get the summary as markdown
+            weather_md = await get_weather_summary(report)
 
-        return EventSourceResponse(event_generator())
+            # Convert markdown to HTML
+            weather_html = markdown.markdown(weather_md, extensions=["extra"])
+
+            # Return the HTML directly
+            return HTMLResponse(weather_html)
+        except Exception as e:
+            print(f"Error generating weather HTML: {e}")
+            traceback.print_exc()
+            return HTMLResponse(f"<p>Error loading weather data: {str(e)}</p>")
 
 
 def get_report():
@@ -813,6 +815,7 @@ Be enthusiastic about any exciting weather patterns coming - especially snow!
 During winter and spring, suggest skiing and snowshowing as an outdoor activity when appropriate.
 During summer and fall, suggest hiking and mountain biking.
 End with a casual recommendation for outdoor activities given the forecast.
+Use markdown to format your response.
 """
 
 
@@ -822,14 +825,11 @@ async def get_meyers_weather_forecast():
     return await fetch(noaa_url)
 
 
-async def gen_summary(report):
+@cached(600)  # Cache for 10 minutes
+async def get_weather_summary(report):
     """
-    Generate a weather forecast summary by fetching data from NOAA and using the API to sample a model.
-
-    Returns:
-        A string containing the generated forecast summary
+    Generate a weather forecast summary that can be cached
     """
-
     # Fetch the NOAA forecast data
     forecast_data = await get_meyers_weather_forecast()
 
@@ -843,14 +843,16 @@ async def gen_summary(report):
         {"role": "user", "content": WEATHER_PROMPT.format(report=report)},
     ]
 
-    async for chunk in stream_anthropic_api(
+    response = await call_anthropic_api(
         model="claude-3-7-sonnet-latest",
         system=get_standard_system_prompt(),
         messages=messages,
         max_tokens=800,
         temperature=0.2,
-    ):
-        yield chunk
+    )
+
+    # Extract and return the content as a string
+    return response.content[0].text
 
 
 async def main():
@@ -858,8 +860,8 @@ async def main():
     report = get_report()
     print(report)
     print()
-    async for text_chunk in gen_summary(report):
-        print(text_chunk, end="", flush=True)
+    weather_summary = await get_weather_summary(report)
+    print(weather_summary)
     print()
 
 
