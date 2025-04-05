@@ -782,6 +782,7 @@ Give a casual, friendly description of the weather right here in Meyers.
 Start with a conversational mention of the current temperature and conditions - like you're chatting with a neighbor.
 For example: 'It's a chilly 38° here in Meyers right now with clear skies. Yesterday was a warm with highs in the 60s.'
 Blend in the following weather station data naturally without listing statistics.
+Remember that rain rate may actually be snowmelt; this is not a fancy weather station. When in doubt, refer to moisture, not rain.
 {{report}}
 After a summary of the weather yesterday and the current conditions, tell us what to expect today/tomorrow and through the week.
 Be enthusiastic about any exciting weather patterns coming - especially snow!
@@ -837,12 +838,6 @@ async def main():
         print(text_chunk, end="", flush=True)
     print()
 
-
-if __name__ == "__main__":
-    # Run the main function when script is executed directly
-    import asyncio
-
-    asyncio.run(main())
 
 if __name__ == "__main__":
     # Run the main function when script is executed directly

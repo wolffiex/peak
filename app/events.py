@@ -1,4 +1,6 @@
 from typing import AsyncGenerator, Any
+
+from app.email import get_beach_buzz
 from .api import call_anthropic_api, stream_anthropic_api
 from .http_client import fetch_all
 from .prompts import get_standard_system_prompt
@@ -22,15 +24,17 @@ When an event's location is listed as "Lake Tahoe" with no further specification
 """
 
 EVENTS_FINAL_PROMPT = """
-Create a casual, conversational list of the most interesting upcoming events in South Lake Tahoe for the next 7-10 days.
+Create a casual, conversational list of the most interesting upcoming events in South Lake Tahoe.
 There ARE events happening in South Lake Tahoe, Meyers, and Stateline - the casinos like Harrah's and Harvey's always have shows and entertainment.
-Only list events that are actually in South Lake Tahoe, Meyers, or Stateline - exclude North Lake Tahoe.
 Organize the events chronologically by date and include the specific venue for each.
 Include at least 5 different events if available across different venues.
 Focus on a diverse mix of entertainment, music, arts, and outdoor activities.
 For each event, mention the day, date, name, venue, and a brief, casual description that captures what makes it fun or interesting.
 Mention time but DON'T focus on ticket prices or technical details. Keep descriptions short, conversational and engaging.
-End with an enthusiastic recommendation for your top pick of the events.
+Pick up to three top choices for each day with good options in the coming week.
+Summarize the highlights of the following three weeks in a single section at the end.
+End with an enthusiastic recommendation for your top pick of the events this week.
+Format your response with markdown.
 """
 
 
@@ -124,6 +128,11 @@ async def gen_events() -> AsyncGenerator[Any, None]:
             "content": "Here's a processed list of upcoming events in Lake Tahoe:",
         },
         {"role": "user", "content": raw_events_list},
+        {
+            "role": "user",
+            "content": "Here is a list of upcoming events at the Tahoe Beach Club:",
+        },
+        {"role": "user", "content": get_beach_buzz()},
         {"role": "user", "content": EVENTS_FINAL_PROMPT},
     ]
     async for chunk in stream_anthropic_api(

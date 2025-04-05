@@ -73,7 +73,8 @@ def authenticate():
     return build("gmail", "v1", credentials=creds)
 
 
-def get_beach_buzz(service):
+def get_beach_buzz():
+    service = authenticate()
     """Fetch the most recent 'The Beach Buzz' email and return its details."""
     print("Fetching most recent email with 'The Beach Buzz' in subject...")
 
@@ -105,11 +106,8 @@ def get_beach_buzz(service):
 
 def main():
     """Main function that authenticates and fetches The Beach Buzz email."""
-    # Authenticate and get service
-    service = authenticate()
-
     # Get and display Beach Buzz email
-    buzz = get_beach_buzz(service)
+    buzz = get_beach_buzz()
     print(buzz)
 
 
