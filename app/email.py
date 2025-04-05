@@ -91,45 +91,16 @@ def get_beach_buzz(service):
     msg_id = messages[0]["id"]
     message = service.users().messages().get(userId="me", id=msg_id).execute()
 
-    # Extract email details
-    headers = {
-        header["name"]: header["value"] for header in message["payload"]["headers"]
-    }
-    email_data = {
-        "from": headers.get("From", "Unknown"),
-        "subject": headers.get("Subject", "No Subject"),
-        "date": headers.get("Date", "Unknown"),
-        "body": "",
-    }
-
     # Extract body content
     if "parts" in message["payload"]:
         for part in message["payload"]["parts"]:
             if part["mimeType"] == "text/plain":
                 body = part["body"].get("data", "")
                 if body:
-                    email_data["body"] = base64.urlsafe_b64decode(body).decode("utf-8")
-                    break
+                    return base64.urlsafe_b64decode(body).decode("utf-8")
     elif "body" in message["payload"] and "data" in message["payload"]["body"]:
         body = message["payload"]["body"]["data"]
-        email_data["body"] = base64.urlsafe_b64decode(body).decode("utf-8")
-
-    return email_data
-
-
-def display_email(email_data):
-    """Display formatted email data."""
-    if not email_data:
-        return
-
-    print("\n===== Latest 'The Beach Buzz' Email =====")
-    print(f"From: {email_data['from']}")
-    print(f"Subject: {email_data['subject']}")
-    print(f"Date: {email_data['date']}")
-
-    if email_data["body"]:
-        print("\nMessage Body:")
-        print(email_data["body"])
+        return base64.urlsafe_b64decode(body).decode("utf-8")
 
 
 def main():
@@ -138,8 +109,8 @@ def main():
     service = authenticate()
 
     # Get and display Beach Buzz email
-    email_data = get_beach_buzz(service)
-    display_email(email_data)
+    buzz = get_beach_buzz(service)
+    print(buzz)
 
 
 if __name__ == "__main__":
