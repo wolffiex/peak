@@ -6,6 +6,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from .cache import cached
 
 # Enable non-HTTPS redirect URIs for development
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -73,9 +74,10 @@ def authenticate():
     return build("gmail", "v1", credentials=creds)
 
 
+@cached(300)  # Cache for 5 minutes
 def get_beach_buzz():
-    service = authenticate()
     """Fetch the most recent 'The Beach Buzz' email and return its details."""
+    service = authenticate()
     print("Fetching most recent email with 'The Beach Buzz' in subject...")
 
     query = 'subject:"The Beach Buzz"'
