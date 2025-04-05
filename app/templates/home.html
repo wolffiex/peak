@@ -15,9 +15,7 @@
                 <div
                     class="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6"
                 >
-                
-                    <!-- Include only desired sections -->
-                    {% for context_name in context_names %}
+                    <!-- Controls section -->
                     <div
                         class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
                     >
@@ -25,24 +23,79 @@
                             <h2
                                 class="text-lg font-medium text-gray-900 capitalize"
                             >
-                                {{ context_name }}
+                                Controls
                             </h2>
                         </div>
                         <div class="px-4 py-5 sm:p-6">
-                            {% if context_name == 'controls' %}
                             <div data-controls-target></div>
-                            {% else %}
+                        </div>
+                    </div>
+
+                    <!-- Weather section -->
+                    <div
+                        class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
+                    >
+                        <div class="px-4 py-5 sm:px-6">
+                            <h2
+                                class="text-lg font-medium text-gray-900 capitalize"
+                            >
+                                Weather
+                            </h2>
+                        </div>
+                        <div class="px-4 py-5 sm:p-6">
                             <div
-                                data-stream="{{ context_name }}"
+                                data-stream="weather"
                                 class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[12rem]"
                             >
                                 <div class="animate-pulse">Loading...</div>
                                 <p class="content"></p>
                             </div>
-                            {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
+
+                    <!-- Events section -->
+                    <div
+                        class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
+                    >
+                        <div class="px-4 py-5 sm:px-6">
+                            <h2
+                                class="text-lg font-medium text-gray-900 capitalize"
+                            >
+                                Events
+                            </h2>
+                        </div>
+                        <div class="px-4 py-5 sm:p-6">
+                            <div
+                                data-stream="events"
+                                class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[12rem]"
+                            >
+                                <div class="animate-pulse">Loading...</div>
+                                <p class="content"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Planets section -->
+                    <div
+                        class="relative overflow-hidden bg-white rounded-lg shadow divide-y divide-gray-200"
+                    >
+                        <div class="px-4 py-5 sm:px-6">
+                            <h2
+                                class="text-lg font-medium text-gray-900 capitalize"
+                            >
+                                Planets
+                            </h2>
+                        </div>
+                        <div class="px-4 py-5 sm:p-6">
+                            <div
+                                data-stream="planets"
+                                class="prose prose-sm max-w-none font-normal leading-relaxed text-gray-600 min-h-[12rem]"
+                            >
+                                <div class="animate-pulse">Loading...</div>
+                                <p class="content"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
