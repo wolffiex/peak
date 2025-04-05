@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os.path
 import os
+import base64
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -13,11 +14,13 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 
-def main():
+def authenticate():
+    """Authenticate with Gmail API and return the service object."""
     creds = None
     # Load existing token
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
     # If no valid token, start auth flow
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -66,10 +69,12 @@ def main():
         with open("token.json", "w") as token_file:
             token_file.write(creds.to_json())
 
-    # Build Gmail API client
-    service = build("gmail", "v1", credentials=creds)
+    # Build and return Gmail API client
+    return build("gmail", "v1", credentials=creds)
 
-    # Fetch most recent email with "The Beach Buzz" in subject
+
+def get_beach_buzz(service):
+    """Fetch the most recent 'The Beach Buzz' email and return its details."""
     print("Fetching most recent email with 'The Beach Buzz' in subject...")
 
     query = 'subject:"The Beach Buzz"'
@@ -80,40 +85,61 @@ def main():
     messages = results.get("messages", [])
     if not messages:
         print("No emails found with 'The Beach Buzz' in subject.")
-        return
+        return None
 
     # Get the first message (most recent)
     msg_id = messages[0]["id"]
     message = service.users().messages().get(userId="me", id=msg_id).execute()
 
-    # Display email details
+    # Extract email details
     headers = {
         header["name"]: header["value"] for header in message["payload"]["headers"]
     }
+    email_data = {
+        "from": headers.get("From", "Unknown"),
+        "subject": headers.get("Subject", "No Subject"),
+        "date": headers.get("Date", "Unknown"),
+        "body": "",
+    }
 
-    print("\n===== Latest 'The Beach Buzz' Email =====")
-    print(f"From: {headers.get('From', 'Unknown')}")
-    print(f"Subject: {headers.get('Subject', 'No Subject')}")
-    print(f"Date: {headers.get('Date', 'Unknown')}")
-
-    # Extract body content (this is simplified, might need more parsing based on MIME structure)
+    # Extract body content
     if "parts" in message["payload"]:
         for part in message["payload"]["parts"]:
             if part["mimeType"] == "text/plain":
                 body = part["body"].get("data", "")
                 if body:
-                    import base64
-
-                    decoded_body = base64.urlsafe_b64decode(body).decode("utf-8")
-                    print("\nMessage Body:")
-                    print(decoded_body)
+                    email_data["body"] = base64.urlsafe_b64decode(body).decode("utf-8")
+                    break
     elif "body" in message["payload"] and "data" in message["payload"]["body"]:
         body = message["payload"]["body"]["data"]
-        import base64
+        email_data["body"] = base64.urlsafe_b64decode(body).decode("utf-8")
 
-        decoded_body = base64.urlsafe_b64decode(body).decode("utf-8")
+    return email_data
+
+
+def display_email(email_data):
+    """Display formatted email data."""
+    if not email_data:
+        return
+
+    print("\n===== Latest 'The Beach Buzz' Email =====")
+    print(f"From: {email_data['from']}")
+    print(f"Subject: {email_data['subject']}")
+    print(f"Date: {email_data['date']}")
+
+    if email_data["body"]:
         print("\nMessage Body:")
-        print(decoded_body)
+        print(email_data["body"])
+
+
+def main():
+    """Main function that authenticates and fetches The Beach Buzz email."""
+    # Authenticate and get service
+    service = authenticate()
+
+    # Get and display Beach Buzz email
+    email_data = get_beach_buzz(service)
+    display_email(email_data)
 
 
 if __name__ == "__main__":
