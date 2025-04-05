@@ -69,13 +69,51 @@ def main():
     # Build Gmail API client
     service = build("gmail", "v1", credentials=creds)
 
-    # List Gmail labels
-    results = service.users().labels().list(userId="me").execute()
-    labels = results.get("labels", [])
+    # Fetch most recent email with "The Beach Buzz" in subject
+    print("Fetching most recent email with 'The Beach Buzz' in subject...")
 
-    print("Labels:")
-    for label in labels:
-        print(f"- {label['name']}")
+    query = 'subject:"The Beach Buzz"'
+    results = (
+        service.users().messages().list(userId="me", q=query, maxResults=1).execute()
+    )
+
+    messages = results.get("messages", [])
+    if not messages:
+        print("No emails found with 'The Beach Buzz' in subject.")
+        return
+
+    # Get the first message (most recent)
+    msg_id = messages[0]["id"]
+    message = service.users().messages().get(userId="me", id=msg_id).execute()
+
+    # Display email details
+    headers = {
+        header["name"]: header["value"] for header in message["payload"]["headers"]
+    }
+
+    print("\n===== Latest 'The Beach Buzz' Email =====")
+    print(f"From: {headers.get('From', 'Unknown')}")
+    print(f"Subject: {headers.get('Subject', 'No Subject')}")
+    print(f"Date: {headers.get('Date', 'Unknown')}")
+
+    # Extract body content (this is simplified, might need more parsing based on MIME structure)
+    if "parts" in message["payload"]:
+        for part in message["payload"]["parts"]:
+            if part["mimeType"] == "text/plain":
+                body = part["body"].get("data", "")
+                if body:
+                    import base64
+
+                    decoded_body = base64.urlsafe_b64decode(body).decode("utf-8")
+                    print("\nMessage Body:")
+                    print(decoded_body)
+    elif "body" in message["payload"] and "data" in message["payload"]["body"]:
+        body = message["payload"]["body"]["data"]
+        import base64
+
+        decoded_body = base64.urlsafe_b64decode(body).decode("utf-8")
+        print("\nMessage Body:")
+        print(decoded_body)
 
 
 if __name__ == "__main__":
