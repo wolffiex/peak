@@ -11,3 +11,6 @@ package-lock.json
 dist/
 *.tsbuildinfo
 .tscache/
+
+*secret*
+*token*
