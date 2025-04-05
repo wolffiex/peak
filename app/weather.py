@@ -785,8 +785,16 @@ Blend in the following weather station data naturally without listing statistics
 {{report}}
 After a summary of the weather yesterday and the current conditions, tell us what to expect today/tomorrow and through the week.
 Be enthusiastic about any exciting weather patterns coming - especially snow!
+During winter and spring, suggest skiing and snowshowing as an outdoor activity when appropriate.
+During summer and fall, suggest hiking and mountain biking.
 End with a casual recommendation for outdoor activities given the forecast.
 """
+
+
+async def get_meyers_weather_forecast():
+    # Fetch the NOAA forecast data
+    noaa_url = "https://forecast.weather.gov/MapClick.php?lat=38.8569&lon=-120.0126"
+    return await fetch(noaa_url)
 
 
 async def gen_summary(report):
@@ -798,8 +806,7 @@ async def gen_summary(report):
     """
 
     # Fetch the NOAA forecast data
-    noaa_url = "https://forecast.weather.gov/MapClick.php?lat=38.8569&lon=-120.0126"
-    forecast_data = await fetch(noaa_url)
+    forecast_data = await get_meyers_weather_forecast()
 
     # Call the API to generate the summary
     messages = [
@@ -811,8 +818,6 @@ async def gen_summary(report):
         {"role": "user", "content": WEATHER_PROMPT.format(report=report)},
     ]
 
-    print(get_standard_system_prompt())
-    print(WEATHER_PROMPT.format(report=report))
     async for chunk in stream_anthropic_api(
         model="claude-3-7-sonnet-latest",
         system=get_standard_system_prompt(),
@@ -832,6 +837,12 @@ async def main():
         print(text_chunk, end="", flush=True)
     print()
 
+
+if __name__ == "__main__":
+    # Run the main function when script is executed directly
+    import asyncio
+
+    asyncio.run(main())
 
 if __name__ == "__main__":
     # Run the main function when script is executed directly

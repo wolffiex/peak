@@ -1,6 +1,7 @@
 from skyfield.almanac import find_discrete, risings_and_settings, meridian_transits
 from skyfield.framelib import ecliptic_frame
 from datetime import datetime, timedelta, timezone
+from .weather import get_meyers_weather_forecast
 from .utils import (
     LOCAL_TIMEZONE as local_timezone,
     TS as ts,
@@ -112,8 +113,6 @@ def get_moon_phase_name(phase):
 
 # Function to get moon data
 def get_moon_data():
-    # Using MOON from constants.py
-
     # Extend the time range to get more events
     extended_end = ts.utc((t1.utc_datetime() + timedelta(days=2)))
 
@@ -210,67 +209,82 @@ def get_moon_data():
     }
 
 
-# Display moon data
-print("\nMoon")
-moon_data = get_moon_data()
+def get_report():
+    lines = []
+    lines.append("Moon")
+    moon_data = get_moon_data()
 
-# Format and display moon data
-moon_visible = moon_data["is_visible"]
-visibility_status = "Visible now" if moon_visible else "Not currently visible"
-print(f"  Status      : {visibility_status}")
-print(f"  Current alt : {moon_data['current_altitude']:.2f}°")
-print(
-    f"  Phase       : {moon_data['phase_name']} ({moon_data['illumination']:.1f}% illuminated)"
-)
-
-# Print sequential moon events
-if moon_data["rise_time"]:
-    print(
-        f"  Next rise   : {format_local_time(moon_data['rise_time'], local_timezone, True)}"
+    moon_visible = moon_data["is_visible"]
+    visibility_status = "Visible now" if moon_visible else "Not currently visible"
+    lines.append(f"  Status      : {visibility_status}")
+    lines.append(f"  Current alt : {moon_data['current_altitude']:.2f}°")
+    lines.append(
+        f"  Phase       : {moon_data['phase_name']} ({moon_data['illumination']:.1f}% illuminated)"
     )
-    if moon_data["transit_time"]:
-        print(
-            f"  Then transit: {format_local_time(moon_data['transit_time'], local_timezone, True)}"
+
+    # Print sequential moon events
+    if moon_data["rise_time"]:
+        lines.append(
+            f"  Next rise   : {format_local_time(moon_data['rise_time'], local_timezone, True)}"
         )
-        print(f"  Max altitude: {moon_data['zenith_angle']:.2f}°")
-    if moon_data["set_time"]:
-        print(
-            f"  Then set    : {format_local_time(moon_data['set_time'], local_timezone, True)}"
-        )
-else:
-    print("  No rise time found in the next few days")
-
-# Loop through planets and compute rise/set/transit
-for name, planet in planets.items():
-    print(f"\n{name}")
-
-    # Get planet events
-    planet_data = get_planet_events(planet, eph, location, observer, t0, t1)
-
-    # Extract data
-    rise_time = planet_data["rise_time"]
-    set_time = planet_data["set_time"]
-    transit_time = planet_data["transit_time"]
-    zenith_angle_deg = planet_data["altitude"]
-    current_altitude = planet_data["current_altitude"]
-    planet_visible = planet_data["is_visible"]
-
-    # Print results
-    visibility_status = "Visible now" if planet_visible else "Not currently visible"
-    print(f"  Status      : {visibility_status}")
-    print(f"  Current alt : {current_altitude:.2f}°")
-
-    # Print sequential rise, transit, set times
-    if rise_time:
-        print(f"  Next rise   : {format_local_time(rise_time, local_timezone, True)}")
-        if transit_time:
-            print(
-                f"  Then transit: {format_local_time(transit_time, local_timezone, True)}"
+        if moon_data["transit_time"]:
+            lines.append(
+                f"  Then transit: {format_local_time(moon_data['transit_time'], local_timezone, True)}"
             )
-            print(f"  Max altitude: {zenith_angle_deg:.2f}°")
-        if set_time:
-            print(
-                f"  Then set    : {format_local_time(set_time, local_timezone, True)}"
+            lines.append(f"  Max altitude: {moon_data['zenith_angle']:.2f}°")
+        if moon_data["set_time"]:
+            lines.append(
+                f"  Then set    : {format_local_time(moon_data['set_time'], local_timezone, True)}"
             )
     else:
-        print("  No rise time found in the next few days")
+        lines.append("  No rise time found in the next few days")
+
+    # Loop through planets and compute rise/set/transit
+    for name, planet in planets.items():
+        lines.append(f"{name}")
+
+        # Get planet events
+        planet_data = get_planet_events(planet, eph, location, observer, t0, t1)
+
+        # Extract data
+        rise_time = planet_data["rise_time"]
+        set_time = planet_data["set_time"]
+        transit_time = planet_data["transit_time"]
+        zenith_angle_deg = planet_data["altitude"]
+        current_altitude = planet_data["current_altitude"]
+        planet_visible = planet_data["is_visible"]
+
+        # Print results
+        visibility_status = "Visible now" if planet_visible else "Not currently visible"
+        lines.append(f"  Status      : {visibility_status}")
+        lines.append(f"  Current alt : {current_altitude:.2f}°")
+
+        # Print sequential rise, transit, set times
+        if rise_time:
+            lines.append(
+                f"  Next rise   : {format_local_time(rise_time, local_timezone, True)}"
+            )
+            if transit_time:
+                lines.append(
+                    f"  Then transit: {format_local_time(transit_time, local_timezone, True)}"
+                )
+                lines.append(f"  Max altitude: {zenith_angle_deg:.2f}°")
+            if set_time:
+                lines.append(
+                    f"  Then set    : {format_local_time(set_time, local_timezone, True)}"
+                )
+        else:
+            lines.append("  No rise time found in the next few days")
+
+    return "\n".join(lines)
+
+
+async def main():
+    print(get_report())
+
+
+if __name__ == "__main__":
+    # Run the main function when script is executed directly
+    import asyncio
+
+    asyncio.run(main())

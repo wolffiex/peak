@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils import localize_time, LOCAL_TIMEZONE
 # from typing import List
 
 """
@@ -54,7 +55,9 @@ What's the expected drive time and are there any problem areas today?
 # System prompts
 def get_standard_system_prompt():
     """Get the standard system prompt with the current datetime."""
-    datetime_str = datetime.now().strftime("%A, %B %d at %I:%M %p Pacific")
+    # Use the localize_time utility to get the correct local time
+    local_time = localize_time(datetime.now())
+    datetime_str = local_time.strftime("%A, %B %d at %I:%M %p %Z")
     return f"""
 You are an expert local providing clear, practical information about current conditions in the mountains.
 The current date and time is {datetime_str}.
