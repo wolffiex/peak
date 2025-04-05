@@ -356,6 +356,30 @@ async def gen_summary():
         yield chunk
 
 
+def install_routes(app, templates):
+    """Install routes to the FastAPI app"""
+    from fastapi import Request
+    from sse_starlette.sse import EventSourceResponse
+    import asyncio
+    import traceback
+
+    @app.get("/stream/planets")
+    async def stream_planets(request: Request):
+        print("\nStarting stream for planets...")
+
+        async def event_generator():
+            try:
+                async for chunk in gen_summary():
+                    yield {"data": chunk}
+                    await asyncio.sleep(0.05)
+            except Exception as e:
+                print(f"\nError in stream planets:")
+                traceback.print_exc()
+                yield {"data": f"\nError: {str(e)}\n{traceback.format_exc()}"}
+
+        return EventSourceResponse(event_generator())
+
+
 async def main():
     async for text_chunk in gen_summary():
         print(text_chunk, end="", flush=True)

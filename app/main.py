@@ -11,6 +11,7 @@ from app import ha
 from app import weather
 from app import traffic
 from app import events
+from app import planets
 
 # Create a FastAPI app and set up routes
 BASE_PATH = Path(__file__).resolve().parent
@@ -22,6 +23,7 @@ ha.install_routes(app, templates)
 weather.install_routes(app, templates)
 traffic.install_routes(app, templates)
 events.install_routes(app, templates)
+planets.install_routes(app, templates)
 
 
 @app.get("/", response_class=HTMLResponse)

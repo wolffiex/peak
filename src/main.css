@@ -10,3 +10,13 @@
 [data-html="/events"] .content h3 {
   @apply text-lg font-semibold my-3 text-gray-800;
 }
+
+/* Ensure consistent spacing in all content blocks */
+.prose h2, .prose h3 {
+  @apply my-3;
+}
+
+/* Add some spacing between paragraphs in all content blocks */
+.prose p {
+  @apply my-2;
+}

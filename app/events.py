@@ -35,7 +35,7 @@ Mention time but DON'T focus on ticket prices or technical details. Keep descrip
 Pick up to three top choices for each day with good options in the coming week.
 Summarize the highlights of the following three weeks in a single section at the end.
 End with an enthusiastic recommendation for your top pick of the events this week.
-Format your response with markdown.
+Format your response with markdown. Use some emojis for highlighted events.
 """
 
 
