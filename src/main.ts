@@ -52,7 +52,7 @@ function initializeStream(block: StreamBlock): void {
     block.querySelector(".animate-pulse")?.remove();
     const lines = event.data.split("\n");
     content.innerHTML += lines
-      .map(line => `<span>${line}</span>`)
+      .map((line) => `<span>${line}</span>`)
       .join("<br>");
   };
 
@@ -61,10 +61,42 @@ function initializeStream(block: StreamBlock): void {
   };
 }
 
+// Initialize stream-based content
 document
   .querySelectorAll<StreamBlock>("[data-stream]")
   .forEach(initializeStream);
 
+// Initialize HTML content blocks
+console.log("Looking for data-html elements");
+const htmlBlocks = document.querySelectorAll<HTMLElement>("[data-html]");
+console.log(`Found ${htmlBlocks.length} data-html elements`);
+
+htmlBlocks.forEach((block) => {
+  const contentUrl = block.dataset.html;
+  console.log(`Processing block with data-html=${contentUrl}`);
+  if (!contentUrl) return;
+
+  const content = block.querySelector(".content");
+  if (!content) {
+    console.log("No .content element found in the block");
+    return;
+  }
+
+  console.log(`Fetching content from ${contentUrl}`);
+  fetch(contentUrl)
+    .then((response) => response.text())
+    .then((html) => {
+      console.log(`Received ${html.length} characters of HTML`);
+      block.querySelector(".animate-pulse")?.remove();
+      content.innerHTML = html;
+    })
+    .catch((error) => {
+      console.error(`Failed to fetch ${contentUrl}:`, error);
+      content.innerHTML = `<span>Error loading content</span>`;
+    });
+});
+
+// Initialize controls
 const controlsTarget = document.querySelector<HTMLElement>(
   "[data-controls-target]",
 );

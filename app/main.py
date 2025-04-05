@@ -10,6 +10,7 @@ import traceback
 from app import ha
 from app import weather
 from app import traffic
+from app import events
 
 # Create a FastAPI app and set up routes
 BASE_PATH = Path(__file__).resolve().parent
@@ -20,6 +21,7 @@ app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 ha.install_routes(app, templates)
 weather.install_routes(app, templates)
 traffic.install_routes(app, templates)
+events.install_routes(app, templates)
 
 
 @app.get("/", response_class=HTMLResponse)

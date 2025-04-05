@@ -1,4 +1,5 @@
 from typing import AsyncGenerator, Any
+import markdown
 
 from app.email import get_beach_buzz
 from .api import call_anthropic_api, stream_anthropic_api
@@ -100,7 +101,8 @@ def preprocess_events_data(intros, results):
     return awaitables
 
 
-async def gen_events() -> AsyncGenerator[Any, None]:
+async def get_events() -> str:
+    """Get full events content as a string."""
     # Get the dynamic sources
     sources = get_sources()
 
@@ -135,21 +137,48 @@ async def gen_events() -> AsyncGenerator[Any, None]:
         {"role": "user", "content": get_beach_buzz()},
         {"role": "user", "content": EVENTS_FINAL_PROMPT},
     ]
-    async for chunk in stream_anthropic_api(
+
+    # Use the non-streaming API to get the full response at once
+    response = await call_anthropic_api(
         model="claude-3-7-sonnet-latest",
         messages=messages,
         system=get_standard_system_prompt(),
         max_tokens=1024,
         temperature=0.0,
-    ):
-        yield chunk
+    )
+
+    # Extract and return the content as a string
+    return response.content[0].text
+
+
+def markdown_to_html(md_content):
+    """Convert markdown content to HTML."""
+    # Convert Markdown to HTML
+    html_content = markdown.markdown(md_content, extensions=["extra"])
+    return html_content
+
+
+def install_routes(app, templates):
+    """Install routes to the FastAPI app."""
+    from fastapi import Request
+    from fastapi.responses import HTMLResponse
+
+    @app.get("/events")
+    async def get_events_html(request: Request):
+        # Get the events content as markdown
+        events_md = await get_events()
+
+        # Convert markdown to HTML
+        events_html = markdown_to_html(events_md)
+
+        # Return the HTML directly
+        return HTMLResponse(events_html)
 
 
 async def main():
     """Run the events generator and print results when script is run directly."""
-    async for text_chunk in gen_events():
-        print(text_chunk, end="", flush=True)
-    print()
+    events_content = await get_events()
+    print(events_content)
 
 
 if __name__ == "__main__":
