@@ -11,7 +11,10 @@ from .utils import (
     PLANETS as planets,
     MOON,
     format_local_time,
+    get_sunrise_sunset,
 )
+from .api import stream_anthropic_api
+from .prompts import get_standard_system_prompt
 
 # Set the date range: from today to tomorrow (UTC)
 today = datetime.now(timezone.utc).date()
@@ -209,6 +212,41 @@ def get_moon_data():
     }
 
 
+def get_local_sunset():
+    # Get current time in local timezone
+    current_time = datetime.now().astimezone(local_timezone)
+
+    # Get today's sunset time
+    _, sunset_time = get_sunrise_sunset(current_time.date())
+
+    # Convert sunset to local time
+    assert sunset_time
+    return sunset_time.replace(tzinfo=timezone.utc).astimezone(local_timezone)
+
+
+def is_good_time_for_viewing():
+    """
+    Determine if it's currently a good time for planetary viewing.
+    Conditions for good viewing:
+    - After sunset
+    - Before midnight (most people don't want to stargaze after midnight)
+    - Moon illumination < 70% (less light pollution for viewing planets)
+    """
+    # Get current time in local timezone
+    current_time = datetime.now().astimezone(local_timezone)
+
+    # Convert sunset to local time
+    sunset_local = get_local_sunset()
+
+    # Check if current time is after sunset
+    after_sunset = current_time > sunset_local
+
+    # Check if it's before midnight
+    before_midnight = current_time.hour < 23  # Before 11 PM
+
+    return after_sunset and before_midnight
+
+
 def get_report():
     lines = []
     lines.append("Moon")
@@ -279,8 +317,49 @@ def get_report():
     return "\n".join(lines)
 
 
+def get_prompt():
+    current = (
+        "right now."
+        if is_good_time_for_viewing()
+        else f"tonight. Sunset will be at {get_local_sunset().strftime('%I:%M %p')}."
+    )
+    return f"""
+Give a casual, friendly description of the opportunities for celestial viewing in the backyard in Meyers {current}
+The observations will be done with an 8" Dobsonian telescope with a 9mm 52° eyepiece.
+Consider the weather forecast, as clouds or cold temps may impact viewing conditions.
+There are some trees in the backyard, especially to the east and west, so bodies must be high overhead to be observed.
+Just focus on night-time viewing. No early rising. Ignore what will happen after midnight.
+Here's some information about the position of the planets and moon.
+{get_report()}
+"""
+
+
+async def gen_summary():
+    # Call the API to generate the summary
+    print(get_prompt())
+    messages = [
+        {
+            "role": "user",
+            "content": "Here's the current weather forecast for Meyers, near South Lake Tahoe:",
+        },
+        {"role": "user", "content": await get_meyers_weather_forecast()},
+        {"role": "user", "content": get_prompt()},
+    ]
+
+    async for chunk in stream_anthropic_api(
+        model="claude-3-7-sonnet-latest",
+        system=get_standard_system_prompt(),
+        messages=messages,
+        max_tokens=800,
+        temperature=0.2,
+    ):
+        yield chunk
+
+
 async def main():
-    print(get_report())
+    async for text_chunk in gen_summary():
+        print(text_chunk, end="", flush=True)
+    print()
 
 
 if __name__ == "__main__":
