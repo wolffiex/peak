@@ -13,8 +13,9 @@ from .utils import (
     format_local_time,
     get_sunrise_sunset,
 )
-from .api import stream_anthropic_api
+from .api import call_anthropic_api, stream_anthropic_api
 from .prompts import get_standard_system_prompt
+from .cache import cached
 
 # Set the date range: from today to tomorrow (UTC)
 today = datetime.now(timezone.utc).date()
@@ -334,8 +335,9 @@ Here's some information about the position of the planets and moon.
 """
 
 
-async def gen_summary():
-    # Call the API to generate the summary
+@cached(600)  # Cache for 10 minutes
+async def get_planet_summary():
+    """Generate a planet viewing summary that can be cached"""
     print(get_prompt())
     messages = [
         {
@@ -346,14 +348,23 @@ async def gen_summary():
         {"role": "user", "content": get_prompt()},
     ]
 
-    async for chunk in stream_anthropic_api(
+    response = await call_anthropic_api(
         model="claude-3-7-sonnet-latest",
         system=get_standard_system_prompt(),
         messages=messages,
         max_tokens=800,
         temperature=0.2,
-    ):
-        yield chunk
+    )
+
+    # Extract and return the content as a string
+    return response.content[0].text
+
+
+async def gen_summary():
+    """Stream the planet summary for compatibility with existing code"""
+    summary = await get_planet_summary()
+    # Yield the whole summary at once since we're not streaming anymore
+    yield summary
 
 
 def install_routes(app, templates):

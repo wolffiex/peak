@@ -16,6 +16,7 @@ from .utils import (
 from .http_client import fetch
 from .api import stream_anthropic_api
 from .prompts import get_standard_system_prompt
+from .cache import cached
 
 router = APIRouter()
 

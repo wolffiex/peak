@@ -177,42 +177,104 @@ def cached(ttl_seconds):
     Decorator that caches function results for specified seconds.
     Works across multiple processes by using Postgres-based caching.
 
+    This decorator works with both regular and async functions.
+
     Usage:
         @cached(300)  # Cache for 5 minutes
         def my_function(arg1, arg2):
             ...
+
+        @cached(300)  # Cache for 5 minutes
+        async def my_async_function(arg1, arg2):
+            ...
     """
+    import inspect
 
     def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            # Create a cache key from the function name
-            cache_key = f"{func.__module__}.{func.__name__}"
+        is_async = inspect.iscoroutinefunction(func)
 
-            # Get worker ID from environment if available
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            cache_key = f"{func.__module__}.{func.__name__}"
             worker_id = os.environ.get("UVICORN_WORKER_ID", "unknown")
             print(f"[CACHE] Worker {worker_id} executing {func.__name__}")
 
-            # Check cache first
             start_time = datetime.now()
             cached_result = postgres_cache.get(cache_key)
 
             if cached_result is not None:
                 return cached_result
 
-            # Cache miss, call the original function
             print(f"[CACHE] Worker {worker_id} executing function directly")
-            result = func(*args, **kwargs)
+            result = await func(*args, **kwargs)
 
-            # Cache the result
-            postgres_cache.set(cache_key, result, ttl_seconds)
+            try:
+                postgres_cache.set(cache_key, result, ttl_seconds)
+            except Exception as e:
+                print(f"[CACHE] Warning: Could not cache result: {e}")
 
-            # Calculate execution time
             execution_time = (datetime.now() - start_time).total_seconds()
             print(f"[CACHE] Total execution time: {execution_time:.2f} seconds")
 
             return result
 
-        return wrapper
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            cache_key = f"{func.__module__}.{func.__name__}"
+            worker_id = os.environ.get("UVICORN_WORKER_ID", "unknown")
+            print(f"[CACHE] Worker {worker_id} executing {func.__name__}")
+
+            start_time = datetime.now()
+            cached_result = postgres_cache.get(cache_key)
+
+            if cached_result is not None:
+                return cached_result
+
+            print(f"[CACHE] Worker {worker_id} executing function directly")
+            result = func(*args, **kwargs)
+
+            try:
+                postgres_cache.set(cache_key, result, ttl_seconds)
+            except Exception as e:
+                print(f"[CACHE] Warning: Could not cache result: {e}")
+
+            execution_time = (datetime.now() - start_time).total_seconds()
+            print(f"[CACHE] Total execution time: {execution_time:.2f} seconds")
+
+            return result
+
+        return async_wrapper if is_async else sync_wrapper
 
     return decorator
+
+
+# Add main execution to clear cache when run directly
+if __name__ == "__main__":
+    # When running directly, clear the cache
+    print("Clearing cache...")
+    deleted_count = postgres_cache.cleanup_expired()
+
+    # Also delete all cache entries (even non-expired ones)
+    conn = None
+    cur = None
+    try:
+        conn = postgres_cache._get_connection()
+        cur = conn.cursor()
+
+        # Delete all cache entries
+        cur.execute("DELETE FROM app_cache")
+        all_deleted = cur.rowcount
+        conn.commit()
+
+        print(f"Deleted {deleted_count} expired cache entries")
+        print(f"Deleted {all_deleted} total cache entries")
+        print("Cache cleared successfully!")
+    except Exception as e:
+        print(f"Error clearing cache: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()

@@ -5,6 +5,7 @@ from app.email import get_beach_buzz
 from .api import call_anthropic_api, stream_anthropic_api
 from .http_client import fetch_all
 from .prompts import get_standard_system_prompt
+from .cache import cached
 import asyncio
 
 # Events context prompts
@@ -101,6 +102,7 @@ def preprocess_events_data(intros, results):
     return awaitables
 
 
+@cached(1800)  # Cache for 30 minutes
 async def get_events() -> str:
     """Get full events content as a string."""
     # Get the dynamic sources
