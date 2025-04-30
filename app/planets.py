@@ -30,11 +30,21 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
 
     # Get all rise/set times in the extended period
     f_rise_set = risings_and_settings(ephemeris, planet_obj, location)
-    times_rs, events_rs = find_discrete(time_start, extended_end, f_rise_set)
+    # Ensure start_time is earlier than end_time
+    if time_start.tt > extended_end.tt:
+        # Swap them if they're in the wrong order
+        times_rs, events_rs = find_discrete(extended_end, time_start, f_rise_set)
+    else:
+        times_rs, events_rs = find_discrete(time_start, extended_end, f_rise_set)
 
     # Get all transit times in the extended period
     f_transit = meridian_transits(ephemeris, planet_obj, location)
-    times_tr, events_tr = find_discrete(time_start, extended_end, f_transit)
+    # Ensure start_time is earlier than end_time
+    if time_start.tt > extended_end.tt:
+        # Swap them if they're in the wrong order
+        times_tr, events_tr = find_discrete(extended_end, time_start, f_transit)
+    else:
+        times_tr, events_tr = find_discrete(time_start, extended_end, f_transit)
 
     # Find the next rise time (from now)
     current_time = ts.now()
@@ -130,11 +140,21 @@ def get_moon_data():
 
     # Get all rise/set times in the extended period
     f_rise_set = risings_and_settings(eph, MOON, location)
-    times_rs, events_rs = find_discrete(current_time, extended_end, f_rise_set)
+    # Ensure start_time is earlier than end_time
+    if current_time.tt > extended_end.tt:
+        # Swap them if they're in the wrong order
+        times_rs, events_rs = find_discrete(extended_end, current_time, f_rise_set)
+    else:
+        times_rs, events_rs = find_discrete(current_time, extended_end, f_rise_set)
 
     # Get all transit times in the extended period
     f_transit = meridian_transits(eph, MOON, location)
-    times_tr, events_tr = find_discrete(current_time, extended_end, f_transit)
+    # Ensure start_time is earlier than end_time
+    if current_time.tt > extended_end.tt:
+        # Swap them if they're in the wrong order
+        times_tr, events_tr = find_discrete(extended_end, current_time, f_transit)
+    else:
+        times_tr, events_tr = find_discrete(current_time, extended_end, f_transit)
 
     # Find next rise event
     for t, event in zip(times_rs, events_rs):

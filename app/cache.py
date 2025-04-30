@@ -56,6 +56,74 @@ class PostgresCache:
             if conn:
                 conn.close()
 
+    def get_with_lock(self, key):
+        """
+        Get a value from cache if it exists, or acquire a lock for computing.
+        Returns (value, conn, cur) tuple, where:
+        - If cache hit: value is the cached result, conn and cur are None
+        - If cache miss with lock acquired: value is None, conn and cur are open for updating
+        - If cache miss but another process is computing: value, conn, cur are all None
+        """
+        conn = None
+        cur = None
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+
+            # First attempt to get with lock
+            cur.execute(
+                """
+                SELECT value, expires_at FROM app_cache 
+                WHERE key = %s AND expires_at > NOW()
+                FOR UPDATE NOWAIT
+                """,
+                (key,),
+            )
+
+            result = cur.fetchone()
+
+            if result:
+                # Cache hit - return the value and close connection
+                expiration = result[1]
+                ttl_seconds = (expiration - datetime.now(timezone.utc)).total_seconds()
+
+                print(f"[CACHE] HIT for key: {key}")
+                print(f"[CACHE] TTL remaining: {int(ttl_seconds)} seconds")
+
+                # Get value and close connection since we don't need the lock
+                value = json.loads(result[0])
+                cur.close()
+                conn.close()
+                return value, None, None
+
+            # Cache miss with lock acquired - caller will compute and update
+            print(f"[CACHE] MISS for key: {key} - lock acquired for computation")
+            return None, conn, cur
+
+        except psycopg2.errors.LockNotAvailable:
+            # Another process is already computing this value
+            print(
+                f"[CACHE] MISS for key: {key} - waiting for another process to compute"
+            )
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+
+            # Sleep and try a regular get to see if it's been computed
+            import time
+
+            time.sleep(0.5)  # 500ms
+            return self.get(key), None, None
+
+        except (Exception, psycopg2.Error) as error:
+            print(f"Error getting from cache with lock: {error}")
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+            return None, None, None
+
     def get(self, key):
         """Get a value from cache if it exists and is not expired"""
         conn = None
@@ -97,23 +165,21 @@ class PostgresCache:
             if conn:
                 conn.close()
 
-    def set(self, key, value, ttl_seconds):
+    def set(self, key, value, ttl_seconds, conn=None, cur=None):
         """Set a value in the cache with expiration"""
-        conn = None
-        cur = None
+        should_close = False
         try:
-            conn = self._get_connection()
-            cur = conn.cursor()
+            # Check if connection was provided (for lock operations)
+            if conn is None or cur is None:
+                conn = self._get_connection()
+                cur = conn.cursor()
+                should_close = True
 
             # Serialize the value as JSON
             serialized_value = json.dumps(value)
 
             # Calculate expiration time
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
-
-            # Check if entry already exists
-            cur.execute("SELECT 1 FROM app_cache WHERE key = %s", (key,))
-            exists = cur.fetchone() is not None
 
             # Insert or update the cache entry
             cur.execute(
@@ -127,9 +193,7 @@ class PostgresCache:
             )
 
             conn.commit()
-
-            action = "UPDATED" if exists else "STORED"
-            print(f"[CACHE] {action} key: {key} (expires in {ttl_seconds} seconds)")
+            print(f"[CACHE] STORED key: {key} (expires in {ttl_seconds} seconds)")
             return True
         except (Exception, psycopg2.Error) as error:
             print(f"Error setting cache: {error}")
@@ -137,10 +201,12 @@ class PostgresCache:
                 conn.rollback()
             return False
         finally:
-            if cur:
-                cur.close()
-            if conn:
-                conn.close()
+            # Only close if we created the connection
+            if should_close:
+                if cur:
+                    cur.close()
+                if conn:
+                    conn.close()
 
     def cleanup_expired(self):
         """Clean up expired cache entries"""
@@ -200,18 +266,52 @@ def cached(ttl_seconds):
             print(f"[CACHE] Worker {worker_id} executing {func.__name__}")
 
             start_time = datetime.now()
-            cached_result = postgres_cache.get(cache_key)
+
+            # Try to get with lock
+            cached_result, conn, cur = postgres_cache.get_with_lock(cache_key)
 
             if cached_result is not None:
+                # Cache hit or another worker computed it while we waited
                 return cached_result
 
-            print(f"[CACHE] Worker {worker_id} executing function directly")
+            if conn is None and cur is None:
+                # Another worker is computing, but we couldn't get the result yet
+                # Fall back to normal get in case it's ready now
+                cached_result = postgres_cache.get(cache_key)
+                if cached_result is not None:
+                    return cached_result
+
+                # If still not ready, compute ourselves but don't cache (to avoid duplicate work)
+                print(
+                    f"[CACHE] Worker {worker_id} executing function directly (not caching)"
+                )
+                result = await func(*args, **kwargs)
+
+                execution_time = (datetime.now() - start_time).total_seconds()
+                print(
+                    f"[CACHE] Total execution time: {execution_time:.2f} seconds (result not cached)"
+                )
+
+                return result
+
+            # We have the lock, compute the result
+            print(f"[CACHE] Worker {worker_id} executing function directly with lock")
             result = await func(*args, **kwargs)
 
             try:
-                postgres_cache.set(cache_key, result, ttl_seconds)
+                # Pass the connection with the lock to set
+                postgres_cache.set(cache_key, result, ttl_seconds, conn, cur)
+                # Don't close conn and cur - set() will handle that
+                conn = None
+                cur = None
             except Exception as e:
                 print(f"[CACHE] Warning: Could not cache result: {e}")
+                if conn:
+                    conn.close()
+                    conn = None
+                if cur:
+                    cur.close()
+                    cur = None
 
             execution_time = (datetime.now() - start_time).total_seconds()
             print(f"[CACHE] Total execution time: {execution_time:.2f} seconds")
@@ -225,18 +325,52 @@ def cached(ttl_seconds):
             print(f"[CACHE] Worker {worker_id} executing {func.__name__}")
 
             start_time = datetime.now()
-            cached_result = postgres_cache.get(cache_key)
+
+            # Try to get with lock
+            cached_result, conn, cur = postgres_cache.get_with_lock(cache_key)
 
             if cached_result is not None:
+                # Cache hit or another worker computed it while we waited
                 return cached_result
 
-            print(f"[CACHE] Worker {worker_id} executing function directly")
+            if conn is None and cur is None:
+                # Another worker is computing, but we couldn't get the result yet
+                # Fall back to normal get in case it's ready now
+                cached_result = postgres_cache.get(cache_key)
+                if cached_result is not None:
+                    return cached_result
+
+                # If still not ready, compute ourselves but don't cache (to avoid duplicate work)
+                print(
+                    f"[CACHE] Worker {worker_id} executing function directly (not caching)"
+                )
+                result = func(*args, **kwargs)
+
+                execution_time = (datetime.now() - start_time).total_seconds()
+                print(
+                    f"[CACHE] Total execution time: {execution_time:.2f} seconds (result not cached)"
+                )
+
+                return result
+
+            # We have the lock, compute the result
+            print(f"[CACHE] Worker {worker_id} executing function directly with lock")
             result = func(*args, **kwargs)
 
             try:
-                postgres_cache.set(cache_key, result, ttl_seconds)
+                # Pass the connection with the lock to set
+                postgres_cache.set(cache_key, result, ttl_seconds, conn, cur)
+                # Don't close conn and cur - set() will handle that
+                conn = None
+                cur = None
             except Exception as e:
                 print(f"[CACHE] Warning: Could not cache result: {e}")
+                if conn:
+                    conn.close()
+                    conn = None
+                if cur:
+                    cur.close()
+                    cur = None
 
             execution_time = (datetime.now() - start_time).total_seconds()
             print(f"[CACHE] Total execution time: {execution_time:.2f} seconds")
