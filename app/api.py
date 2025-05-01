@@ -1,5 +1,11 @@
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, APIError, RateLimitError
 import asyncio
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 # Semaphore to limit concurrent API calls
 anthropic_semaphore = asyncio.Semaphore(3)
@@ -7,11 +13,18 @@ anthropic_semaphore = asyncio.Semaphore(3)
 client = AsyncAnthropic()
 
 
+@retry(
+    retry=retry_if_exception_type((RateLimitError, APIError)),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    reraise=True,
+)
 async def call_anthropic_api(
     model, messages, system=None, max_tokens=1024, temperature=0.0
 ):
     """
     Centralized function for non-streaming Anthropic API calls with concurrency control.
+    Includes retry logic for handling rate limits and API errors.
 
     Args:
         model: The Claude model to use
@@ -43,11 +56,18 @@ async def call_anthropic_api(
         return response
 
 
+@retry(
+    retry=retry_if_exception_type((RateLimitError, APIError)),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    reraise=True,
+)
 async def stream_anthropic_api(
     model, messages, system=None, max_tokens=1024, temperature=0.0
 ):
     """
     Streaming version of Anthropic API calls with concurrency control.
+    Includes retry logic for handling rate limits and API errors.
 
     Args:
         model: The Claude model to use
