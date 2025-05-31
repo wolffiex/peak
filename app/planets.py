@@ -94,6 +94,28 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
     current_alt, _, _ = observer.at(current_time).observe(planet_obj).apparent().altaz()
     current_altitude = current_alt.degrees
 
+    # Calculate altitude at sunset and 1 hour after
+    # Get today's sunset time
+    current_local = datetime.now().astimezone(local_timezone)
+    _, sunset_utc = get_sunrise_sunset(current_local.date())
+
+    sunset_alt = None
+    hour_after_alt = None
+
+    if sunset_utc:
+        sunset_ts = ts.utc(sunset_utc.replace(tzinfo=timezone.utc))
+        sunset_alt_obj, _, _ = (
+            observer.at(sunset_ts).observe(planet_obj).apparent().altaz()
+        )
+        sunset_alt = sunset_alt_obj.degrees
+
+        hour_after = sunset_utc + timedelta(hours=1)
+        hour_after_ts = ts.utc(hour_after.replace(tzinfo=timezone.utc))
+        hour_after_alt_obj, _, _ = (
+            observer.at(hour_after_ts).observe(planet_obj).apparent().altaz()
+        )
+        hour_after_alt = hour_after_alt_obj.degrees
+
     return {
         "rise_time": rise_time,
         "set_time": set_time,
@@ -101,6 +123,8 @@ def get_planet_events(planet_obj, ephemeris, location, observer, time_start, tim
         "altitude": altitude,  # altitude at transit
         "current_altitude": current_altitude,
         "is_visible": current_altitude > 0,
+        "altitude_at_sunset": sunset_alt,
+        "altitude_hour_after_sunset": hour_after_alt,
     }
 
 
@@ -220,6 +244,25 @@ def get_moon_data():
     if illumination > 100:
         illumination = 200 - illumination
 
+    # Calculate altitude at sunset and 1 hour after
+    current_local = datetime.now().astimezone(local_timezone)
+    _, sunset_utc = get_sunrise_sunset(current_local.date())
+
+    sunset_alt = None
+    hour_after_alt = None
+
+    if sunset_utc:
+        sunset_ts = ts.utc(sunset_utc.replace(tzinfo=timezone.utc))
+        sunset_alt_obj, _, _ = observer.at(sunset_ts).observe(MOON).apparent().altaz()
+        sunset_alt = sunset_alt_obj.degrees
+
+        hour_after = sunset_utc + timedelta(hours=1)
+        hour_after_ts = ts.utc(hour_after.replace(tzinfo=timezone.utc))
+        hour_after_alt_obj, _, _ = (
+            observer.at(hour_after_ts).observe(MOON).apparent().altaz()
+        )
+        hour_after_alt = hour_after_alt_obj.degrees
+
     return {
         "rise_time": rise_time,
         "set_time": set_time,
@@ -230,6 +273,8 @@ def get_moon_data():
         "phase": phase,
         "phase_name": phase_name,
         "illumination": illumination,
+        "altitude_at_sunset": sunset_alt,
+        "altitude_hour_after_sunset": hour_after_alt,
     }
 
 
@@ -270,16 +315,35 @@ def is_good_time_for_viewing():
 
 def get_report():
     lines = []
+
+    # Add current time and sunset info
+    current_time = datetime.now().astimezone(local_timezone)
+    sunset_time = get_local_sunset()
+    lines.append(f"Current time: {current_time.strftime('%I:%M %p')}")
+    lines.append(f"Sunset: {sunset_time.strftime('%I:%M %p')}")
+    lines.append("")
+
+    # Check if it's daytime
+    is_daytime = current_time < sunset_time
+
     lines.append("Moon")
     moon_data = get_moon_data()
 
     moon_visible = moon_data["is_visible"]
-    visibility_status = "Visible now" if moon_visible else "Not currently visible"
+    if is_daytime:
+        visibility_status = "Above horizon" if moon_visible else "Below horizon"
+    else:
+        visibility_status = "Visible now" if moon_visible else "Not currently visible"
     lines.append(f"  Status      : {visibility_status}")
     lines.append(f"  Current alt : {moon_data['current_altitude']:.2f}°")
     lines.append(
         f"  Phase       : {moon_data['phase_name']} ({moon_data['illumination']:.1f}% illuminated)"
     )
+
+    # Add evening visibility info
+    if moon_data.get("altitude_at_sunset") is not None:
+        lines.append(f"  At sunset   : {moon_data['altitude_at_sunset']:.2f}°")
+        lines.append(f"  Hour after  : {moon_data['altitude_hour_after_sunset']:.2f}°")
 
     # Print sequential moon events
     if moon_data["rise_time"]:
@@ -314,9 +378,21 @@ def get_report():
         planet_visible = planet_data["is_visible"]
 
         # Print results
-        visibility_status = "Visible now" if planet_visible else "Not currently visible"
+        if is_daytime:
+            visibility_status = "Above horizon" if planet_visible else "Below horizon"
+        else:
+            visibility_status = (
+                "Visible now" if planet_visible else "Not currently visible"
+            )
         lines.append(f"  Status      : {visibility_status}")
         lines.append(f"  Current alt : {current_altitude:.2f}°")
+
+        # Add evening visibility info
+        if planet_data.get("altitude_at_sunset") is not None:
+            lines.append(f"  At sunset   : {planet_data['altitude_at_sunset']:.2f}°")
+            lines.append(
+                f"  Hour after  : {planet_data['altitude_hour_after_sunset']:.2f}°"
+            )
 
         # Print sequential rise, transit, set times
         if rise_time:
