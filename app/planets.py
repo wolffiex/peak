@@ -13,7 +13,7 @@ from .utils import (
     format_local_time,
     get_sunrise_sunset,
 )
-from .api import call_anthropic_api, stream_anthropic_api
+from .api import call_anthropic_api
 from .prompts import get_standard_system_prompt
 from .cache import cached
 
@@ -239,10 +239,11 @@ def get_moon_data():
     # Get phase name
     phase_name = get_moon_phase_name(phase)
 
-    # Calculate illumination percentage (approximate)
-    illumination = abs(50 - phase * 100) * 2
-    if illumination > 100:
-        illumination = 200 - illumination
+    # Calculate illumination percentage using cosine formula
+    # illumination = (1 - cos(phase_angle)) / 2
+    import math
+    phase_angle_rad = math.radians(phase_angle)
+    illumination = (1 - math.cos(phase_angle_rad)) / 2 * 100
 
     # Calculate altitude at sunset and 1 hour after
     current_local = datetime.now().astimezone(local_timezone)
